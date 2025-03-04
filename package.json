@@ -1,20 +1,14 @@
 {
     "name": "four-boxes",
+    "private": true,
     "version": "1.0.0",
-    "description": "",
-    "main": "index.js",
+    "description": "Four adaptive boxes orchestrated by an LLM",
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "dev": "vite"
+        "dev": "pnpm -r dev",
+        "build": "pnpm -r build",
+        "start": "pnpm -r start"
     },
     "keywords": [],
     "author": "",
-    "license": "ISC",
-    "devDependencies": {
-        "vite": "^6.2.0"
-    },
-    "dependencies": {
-        "@tailwindcss/vite": "^4.0.9",
-        "tailwindcss": "^4.0.9"
-    }
+    "license": "ISC"
 }

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script src="https://cdn.tailwindcss.com"></script>
+        <title>Four Boxes</title>
+    </head>
+    <body>
+        <div
+            class="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4"
+        >
+            <!-- Control Panel -->
+            <div class="mb-8 w-full max-w-2xl">
+                <textarea
+                    id="prompt-input"
+                    class="w-full p-4 border rounded-lg shadow-sm mb-2"
+                    placeholder="Enter your prompt here..."
+                    rows="3"
+                ></textarea>
+                <button
+                    id="update-button"
+                    class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                    Update Boxes
+                </button>
+            </div>
+
+            <!-- Boxes Grid -->
+            <div class="grid grid-cols-2 gap-6 w-full max-w-2xl">
+                <div
+                    id="box1"
+                    class="bg-white rounded-lg shadow-lg p-6 min-h-[200px] overflow-auto hover:shadow-xl transition-shadow"
+                >
+                    <div class="prose">Welcome to Box 1</div>
+                </div>
+                <div
+                    id="box2"
+                    class="bg-white rounded-lg shadow-lg p-6 min-h-[200px] overflow-auto hover:shadow-xl transition-shadow"
+                >
+                    <div class="prose">Welcome to Box 2</div>
+                </div>
+                <div
+                    id="box3"
+                    class="bg-white rounded-lg shadow-lg p-6 min-h-[200px] overflow-auto hover:shadow-xl transition-shadow"
+                >
+                    <div class="prose">Welcome to Box 3</div>
+                </div>
+                <div
+                    id="box4"
+                    class="bg-white rounded-lg shadow-lg p-6 min-h-[200px] overflow-auto hover:shadow-xl transition-shadow"
+                >
+                    <div class="prose">Welcome to Box 4</div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Simple state management per box
+            const boxStates = {
+                box1: {},
+                box2: {},
+                box3: {},
+                box4: {},
+            };
+
+            // Helper function to update box content
+            function updateBox(boxId, { html = "", js = "", state = {} }) {
+                const box = document.getElementById(boxId);
+
+                // Update state
+                boxStates[boxId] = state;
+
+                // Update HTML
+                box.innerHTML = `<div class="prose">${html}</div>`;
+
+                // Execute JS in a safe context with access to box state
+                if (js) {
+                    const executeJs = new Function("box", "state", js);
+                    executeJs(box, boxStates[boxId]);
+                }
+            }
+
+            // Example of LLM-generated content for an email viewer
+            const emailViewerContent = {
+                html: `
+                    <div id="email-container">
+                        <div id="email-list" class="space-y-2">
+                            <h3 class="font-bold">Emails</h3>
+                            <div class="space-y-1" id="email-items"></div>
+                        </div>
+                        <div id="email-detail" class="hidden space-y-4">
+                            <button onclick="showEmailList()" class="text-blue-500">← Back</button>
+                            <h3 id="email-subject" class="font-bold"></h3>
+                            <div id="email-from" class="text-sm text-gray-600"></div>
+                            <div id="email-body" class="border-t pt-2"></div>
+                        </div>
+                    </div>
+                `,
+                js: `
+                    // Initialize state
+                    state.emails = [
+                        { subject: "Meeting Tomorrow", from: "boss@company.com", body: "Let's discuss the project..." },
+                        { subject: "Weekly Update", from: "team@company.com", body: "Here's what we accomplished..." }
+                    ];
+                    state.currentEmail = null;
+
+                    // Render email list
+                    function renderEmails() {
+                        const container = box.querySelector('#email-items');
+                        container.innerHTML = state.emails.map((email, i) => 
+                            '<div class="p-2 border rounded cursor-pointer hover:bg-gray-50" onclick="showEmail(' + i + ')">' +
+                            email.subject +
+                            '</div>'
+                        ).join('');
+                    }
+
+                    // Show email detail
+                    window.showEmail = function(index) {
+                        state.currentEmail = state.emails[index];
+                        box.querySelector('#email-list').classList.add('hidden');
+                        box.querySelector('#email-detail').classList.remove('hidden');
+                        box.querySelector('#email-subject').textContent = state.currentEmail.subject;
+                        box.querySelector('#email-from').textContent = 'From: ' + state.currentEmail.from;
+                        box.querySelector('#email-body').textContent = state.currentEmail.body;
+                    }
+
+                    // Show email list
+                    window.showEmailList = function() {
+                        state.currentEmail = null;
+                        box.querySelector('#email-list').classList.remove('hidden');
+                        box.querySelector('#email-detail').classList.add('hidden');
+                    }
+
+                    // Initial render
+                    renderEmails();
+                `,
+                state: {},
+            };
+
+            // Handle the update button click
+            document
+                .getElementById("update-button")
+                .addEventListener("click", async () => {
+                    const prompt =
+                        document.getElementById("prompt-input").value;
+
+                    try {
+                        const response = await fetch(
+                            "http://localhost:3000/api/generate",
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    prompt,
+                                    boxId: "box1",
+                                }),
+                            }
+                        );
+
+                        if (!response.ok) {
+                            throw new Error("Failed to generate content");
+                        }
+
+                        const content = await response.json();
+                        updateBox("box1", content);
+
+                        // Other boxes could have different content
+                        updateBox("box2", { html: "Box 2 content" });
+                        updateBox("box3", { html: "Box 3 content" });
+                        updateBox("box4", { html: "Box 4 content" });
+                    } catch (error) {
+                        console.error("Error:", error);
+                        alert("Failed to generate content. Please try again.");
+                    }
+                });
+        </script>
+    </body>
+</html>
