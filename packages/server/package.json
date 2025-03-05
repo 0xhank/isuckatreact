@@ -2,16 +2,20 @@
     "name": "@four-boxes/server",
     "version": "1.0.0",
     "private": true,
+    "type": "module",
     "scripts": {
-        "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+        "dev": "nodemon --watch 'src/**/*.ts' --exec 'node --loader ts-node/esm' src/index.ts",
         "build": "tsc",
-        "start": "node dist/index.js"
+        "start": "node dist/index.js",
+        "setup:composio": "node --loader ts-node/esm src/composio.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.39.0",
+        "composio-core": "^0.5.18",
         "cors": "^2.8.5",
         "dotenv": "^16.4.5",
         "express": "^4.18.3",
+        "openai": "^4.86.1",
         "zod": "^3.22.4"
     },
     "devDependencies": {

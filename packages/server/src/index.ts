@@ -1,20 +1,21 @@
-import Anthropic from "@anthropic-ai/sdk";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import { OpenAI } from "openai";
 import { z } from "zod";
 
 const models = {
-    sonnet: "claude-3-7-sonnet-20250219",
-    haiku: "claude-3-haiku-20240307",
+    gpt4oMini: "gpt-4o-mini",
+    gpt4: "gpt-4-turbo-preview",
+    gpt35: "gpt-3.5-turbo",
 } as const;
 
 // Define types for our box content
 interface BoxContent {
     spec: string;
     html: string;
-    js: string;
     state: Record<string, unknown>;
+    js: string;
     description: string;
 }
 
@@ -22,8 +23,8 @@ interface BoxContent {
 const boxContentSchema = z.object({
     spec: z.string(),
     html: z.string(),
-    js: z.string(),
     state: z.record(z.unknown()),
+    js: z.string(),
     description: z.string(),
 });
 
@@ -38,8 +39,8 @@ Format:
 {
     "spec": "string explaining the high level technical approach behind the design. Be specific about the html and js code you will generate.",
     "html": "string containing the HTML structure",
-    "js": "string containing the JavaScript code",
     "state": "object containing initial state",
+    "js": "string containing the JavaScript code",
     "description": "string describing what was built"
 }
 
@@ -47,8 +48,8 @@ Example 1 - Counter:
 {
     "spec": "I will generate a counter component with a button to increment the count and a display of the current count. The count will be stored in the state object.",
     "html": "<div class='text-center'><span id='count' class='text-2xl font-bold'>0</span><div class='mt-4'><button id='increment' class='bg-blue-500 text-white px-4 py-2 rounded'>+1</button></div></div>",
-    "js": "state.count = 0; document.getElementById('increment').onclick = () => { state.count++; document.getElementById('count').textContent = state.count; }",
     "state": { "count": 0 },
+    "js": "state.count = 0; document.getElementById('increment').onclick = () => { state.count++; document.getElementById('count').textContent = state.count; }",
     "description": "A simple counter that displays a number and can be incremented by clicking a button. The current count is maintained in state."
 }
 
@@ -58,16 +59,20 @@ Rules:
 3. Use Tailwind CSS for styling
 4. Make components interactive and stateful
 5. Use unique IDs for elements
-6. Keep state in the 'state' object
-7. Handle edge cases and errors
-8. Always include spec first and description last in your response
-9. Keep spec focused on design decisions and implementation approach
-10. Keep description concise and focused on features and functionality`;
+6. In the js section, use single backslash for escaping newlines (\\n not \\\\n)
+7. Keep state in the 'state' object. Do not store state in the js object.
+8. Handle edge cases and errors
+9. Always include spec first and description last in your response
+10. Keep spec focused on design decisions and implementation approach
+11. Keep description concise and focused on features and functionality
+
+Available Libraries:
+- Chart.js (via CDN) - You can use the Chart class directly in your JavaScript code`;
 
 dotenv.config();
 
-const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
 });
 
 const app = express();
@@ -83,11 +88,14 @@ app.post("/api/generate", async (req, res) => {
         const { prompt } = promptSchema.parse(req.body);
         console.log("generating", prompt);
 
-        const response = await anthropic.messages.create({
-            model: models.haiku,
+        const response = await openai.chat.completions.create({
+            model: models.gpt4oMini,
             max_tokens: 4000,
-            system: SYSTEM_PROMPT,
             messages: [
+                {
+                    role: "system",
+                    content: SYSTEM_PROMPT,
+                },
                 {
                     role: "user",
                     content: prompt,
@@ -96,19 +104,32 @@ app.post("/api/generate", async (req, res) => {
         });
 
         // Extract the response and parse it as JSON
-        const content = response.content[0];
+        const content = response.choices[0].message.content;
         console.log(content);
-        if (content.type !== "text") {
-            throw new Error("Unexpected response type from Claude");
+        if (!content) {
+            throw new Error("Empty response from OpenAI");
         }
 
         try {
-            const parsedJson = JSON.parse(content.text);
+            // Clean the response text
+            const cleanedText = content
+                .trim() // Remove leading/trailing whitespace
+                .replace(/^\uFEFF/, "") // Remove BOM if present
+                .replace(/^\u200B/, "") // Remove zero-width space if present
+                .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // Remove control characters
+                .replace(/\\\\n/g, "\\n"); // Fix double-escaped newlines
+
+            // Ensure we're starting with a valid JSON object
+            if (!cleanedText.startsWith("{")) {
+                throw new Error("Response does not start with {");
+            }
+
+            const parsedJson = JSON.parse(cleanedText);
             const boxContent = boxContentSchema.parse(parsedJson);
             res.json(boxContent);
         } catch (parseError) {
-            console.error("Failed to parse Claude response:", parseError);
-            console.error("Original response:", content.text);
+            console.error("Failed to parse OpenAI response:", parseError);
+            console.error("Original response:", content);
             res.status(500).json({ error: "Invalid response format from AI" });
         }
     } catch (error) {
