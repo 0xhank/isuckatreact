@@ -4,146 +4,213 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <script src="https://cdn.tailwindcss.com"></script>
-        <title>Four Boxes</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <title>Jasper</title>
+        <style>
+            body {
+                font-family: "Inter", sans-serif;
+            }
+            .loading {
+                position: relative;
+                pointer-events: none;
+                opacity: 0.7;
+            }
+            .loading::after {
+                content: "";
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 1.2em;
+                height: 1.2em;
+                border: 2px solid #000;
+                border-top-color: transparent;
+                border-radius: 50%;
+                animation: button-loading-spinner 0.6s linear infinite;
+                transform: translate(-50%, -50%);
+            }
+            @keyframes button-loading-spinner {
+                from {
+                    transform: translate(-50%, -50%) rotate(0turn);
+                }
+                to {
+                    transform: translate(-50%, -50%) rotate(1turn);
+                }
+            }
+        </style>
     </head>
-    <body>
-        <div
-            class="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4"
-        >
-            <!-- Control Panel -->
-            <div class="mb-8 w-full max-w-2xl">
-                <textarea
-                    id="prompt-input"
-                    class="w-full p-4 border rounded-lg shadow-sm mb-2"
-                    placeholder="Enter your prompt here..."
-                    rows="3"
-                ></textarea>
-                <button
-                    id="update-button"
-                    class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                    Update Boxes
-                </button>
-            </div>
+    <body class="bg-gray-50 text-gray-900">
+        <div class="min-h-screen flex justify-center bg-gray-50">
+            <div class="w-full max-w-[1200px] flex p-4 gap-6">
+                <!-- Chat Interface -->
+                <div id="chat-container" class="w-[400px] flex flex-col">
+                    <h1 class="text-[32px] font-medium mb-8 tracking-tight">
+                        Jasper
+                    </h1>
+                    <div
+                        id="chat-history-container"
+                        class="flex-1 bg-white rounded-lg border border-gray-200 p-4 mb-4 h-[500px] overflow-y-auto hidden"
+                    >
+                        <div id="chat-history" class="space-y-4">
+                            <div class="text-sm text-gray-500">
+                                Start a conversation by entering a prompt below.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <textarea
+                            class="prompt-input w-full p-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Enter your prompt..."
+                            rows="3"
+                        ></textarea>
+                        <button
+                            class="update-button bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition-colors text-sm font-medium self-end"
+                            data-box-id="1"
+                        >
+                            Generate
+                        </button>
+                    </div>
+                </div>
 
-            <!-- Boxes Grid -->
-            <div class="grid grid-cols-2 gap-6 w-full max-w-2xl">
-                <div
-                    id="box1"
-                    class="bg-white rounded-lg shadow-lg p-6 min-h-[200px] overflow-auto hover:shadow-xl transition-shadow"
-                >
-                    <div class="prose">Welcome to Box 1</div>
-                </div>
-                <div
-                    id="box2"
-                    class="bg-white rounded-lg shadow-lg p-6 min-h-[200px] overflow-auto hover:shadow-xl transition-shadow"
-                >
-                    <div class="prose">Welcome to Box 2</div>
-                </div>
-                <div
-                    id="box3"
-                    class="bg-white rounded-lg shadow-lg p-6 min-h-[200px] overflow-auto hover:shadow-xl transition-shadow"
-                >
-                    <div class="prose">Welcome to Box 3</div>
-                </div>
-                <div
-                    id="box4"
-                    class="bg-white rounded-lg shadow-lg p-6 min-h-[200px] overflow-auto hover:shadow-xl transition-shadow"
-                >
-                    <div class="prose">Welcome to Box 4</div>
+                <!-- Component Display -->
+                <div id="box-container" class="flex-1 hidden">
+                    <div
+                        id="box"
+                        class="bg-white rounded-lg border border-gray-200 p-6 h-[600px] overflow-y-auto shadow-sm hover:shadow-md transition-shadow"
+                    >
+                        <div class="prose">Create a miniapp</div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <script>
             // Simple state management per box
-            const boxStates = {
-                box1: {},
-                box2: {},
-                box3: {},
-                box4: {},
-            };
+            let boxState = {};
+            let chatHistory = [];
+            let lastCodeResponse = null;
 
             // Helper function to update box content
-            function updateBox(boxId, { html = "", js = "", state = {} }) {
-                const box = document.getElementById(boxId);
+            function updateBox({
+                html = "",
+                js = "",
+                state = {},
+                spec = "",
+                description = "",
+            }) {
+                const box = document.getElementById("box");
+
+                // Store the last code response
+                lastCodeResponse = {
+                    html,
+                    js,
+                    state,
+                    spec,
+                    description,
+                };
 
                 // Update state
-                boxStates[boxId] = state;
+                boxState = state;
+
+                // Create content with just the component
+                const content = `
+                    <div class="space-y-4">
+                        <div class="component-container">
+                            ${html}
+                        </div>
+                    </div>
+                `;
 
                 // Update HTML
-                box.innerHTML = `<div class="prose">${html}</div>`;
+                box.innerHTML = `<div class="prose">${content}</div>`;
 
                 // Execute JS in a safe context with access to box state
                 if (js) {
                     const executeJs = new Function("box", "state", js);
-                    executeJs(box, boxStates[boxId]);
+                    executeJs(box, boxState);
                 }
             }
 
-            // Example of LLM-generated content for an email viewer
-            const emailViewerContent = {
-                html: `
-                    <div id="email-container">
-                        <div id="email-list" class="space-y-2">
-                            <h3 class="font-bold">Emails</h3>
-                            <div class="space-y-1" id="email-items"></div>
-                        </div>
-                        <div id="email-detail" class="hidden space-y-4">
-                            <button onclick="showEmailList()" class="text-blue-500">← Back</button>
-                            <h3 id="email-subject" class="font-bold"></h3>
-                            <div id="email-from" class="text-sm text-gray-600"></div>
-                            <div id="email-body" class="border-t pt-2"></div>
-                        </div>
-                    </div>
-                `,
-                js: `
-                    // Initialize state
-                    state.emails = [
-                        { subject: "Meeting Tomorrow", from: "boss@company.com", body: "Let's discuss the project..." },
-                        { subject: "Weekly Update", from: "team@company.com", body: "Here's what we accomplished..." }
-                    ];
-                    state.currentEmail = null;
+            // Function to update layout based on chat history
+            function updateLayout() {
+                const chatContainer = document.getElementById("chat-container");
+                const chatHistoryContainer = document.getElementById(
+                    "chat-history-container"
+                );
+                const boxContainer = document.getElementById("box-container");
 
-                    // Render email list
-                    function renderEmails() {
-                        const container = box.querySelector('#email-items');
-                        container.innerHTML = state.emails.map((email, i) => 
-                            '<div class="p-2 border rounded cursor-pointer hover:bg-gray-50" onclick="showEmail(' + i + ')">' +
-                            email.subject +
-                            '</div>'
-                        ).join('');
-                    }
+                if (chatHistory.length === 0) {
+                    // Center the chat container when empty
+                    chatContainer.className = "w-[400px] flex flex-col mx-auto";
+                    chatHistoryContainer.classList.add("hidden");
+                    boxContainer.classList.add("hidden");
+                } else {
+                    // Show full layout when there are messages
+                    chatContainer.className = "w-[400px] flex flex-col";
+                    chatHistoryContainer.classList.remove("hidden");
+                    boxContainer.classList.remove("hidden");
+                }
+            }
 
-                    // Show email detail
-                    window.showEmail = function(index) {
-                        state.currentEmail = state.emails[index];
-                        box.querySelector('#email-list').classList.add('hidden');
-                        box.querySelector('#email-detail').classList.remove('hidden');
-                        box.querySelector('#email-subject').textContent = state.currentEmail.subject;
-                        box.querySelector('#email-from').textContent = 'From: ' + state.currentEmail.from;
-                        box.querySelector('#email-body').textContent = state.currentEmail.body;
-                    }
+            // Function to add message to chat history
+            function addToChatHistory(message, isUser = true) {
+                const chatDiv = document.getElementById("chat-history");
+                const messageDiv = document.createElement("div");
+                messageDiv.className = `p-3 rounded-lg ${
+                    isUser ? "bg-gray-100" : "bg-blue-50"
+                } text-sm`;
+                messageDiv.textContent = message;
+                chatDiv.appendChild(messageDiv);
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+                chatHistory.push({ message, isUser });
+                updateLayout();
+            }
 
-                    // Show email list
-                    window.showEmailList = function() {
-                        state.currentEmail = null;
-                        box.querySelector('#email-list').classList.remove('hidden');
-                        box.querySelector('#email-detail').classList.add('hidden');
-                    }
+            // Function to build context from chat history and last code
+            function buildPromptContext() {
+                let context = "Chat history:\n";
+                chatHistory.forEach((entry) => {
+                    context += `${entry.isUser ? "User" : "Assistant"}: ${
+                        entry.message
+                    }\n`;
+                });
 
-                    // Initial render
-                    renderEmails();
-                `,
-                state: {},
-            };
+                if (lastCodeResponse) {
+                    context += "\nCurrent component code:\n";
+                    context += `HTML:\n${lastCodeResponse.html}\n`;
+                    context += `JavaScript:\n${lastCodeResponse.js}\n`;
+                    context += `State:\n${JSON.stringify(
+                        lastCodeResponse.state,
+                        null,
+                        2
+                    )}\n`;
+                }
 
-            // Handle the update button click
+                return context;
+            }
+
+            // Handle updates for all boxes
             document
-                .getElementById("update-button")
-                .addEventListener("click", async () => {
-                    const prompt =
-                        document.getElementById("prompt-input").value;
+                .querySelector(".update-button")
+                .addEventListener("click", async (event) => {
+                    const button = event.currentTarget;
+                    const promptInput = document.querySelector(".prompt-input");
+                    if (!promptInput) {
+                        console.error("Prompt input not found");
+                        return;
+                    }
+                    const userPrompt = promptInput.value;
+                    const contextualPrompt =
+                        buildPromptContext() + "\nUser: " + userPrompt;
+
+                    addToChatHistory(userPrompt, true);
+                    const originalText = button.textContent;
+
+                    // Show loading state
+                    button.classList.add("loading");
+                    button.textContent = "";
 
                     try {
                         const response = await fetch(
@@ -154,8 +221,7 @@
                                     "Content-Type": "application/json",
                                 },
                                 body: JSON.stringify({
-                                    prompt,
-                                    boxId: "box1",
+                                    prompt: contextualPrompt,
                                 }),
                             }
                         );
@@ -165,17 +231,24 @@
                         }
 
                         const content = await response.json();
-                        updateBox("box1", content);
-
-                        // Other boxes could have different content
-                        updateBox("box2", { html: "Box 2 content" });
-                        updateBox("box3", { html: "Box 3 content" });
-                        updateBox("box4", { html: "Box 4 content" });
+                        addToChatHistory(
+                            `Generated component: ${content.description}`,
+                            false
+                        );
+                        updateBox(content);
+                        promptInput.value = ""; // Clear input after successful generation
                     } catch (error) {
                         console.error("Error:", error);
                         alert("Failed to generate content. Please try again.");
+                    } finally {
+                        // Reset button state
+                        button.classList.remove("loading");
+                        button.textContent = originalText;
                     }
                 });
+
+            // Initialize layout
+            updateLayout();
         </script>
     </body>
 </html>
