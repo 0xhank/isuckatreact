@@ -5,6 +5,13 @@ interface ChatInterfaceProps {
     chatHistory: Array<{ message: string; isUser: boolean }>;
 }
 
+export interface ChatMessage {
+    message: string;
+    isUser: boolean;
+}
+
+
+
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onSubmit,
     chatHistory,

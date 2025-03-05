@@ -9,13 +9,8 @@ import { ChatMessage } from "./types/chat";
 const queryClient = new QueryClient();
 
 function App() {
-    const [boxes, setBoxes] = useState<
-        Array<{ id: string; content: BoxContent }>
-    >([]);
+    const [boxContent, setBoxContent] = useState<BoxContent | null>(null);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-    const [lastCodeResponse, setLastCodeResponse] = useState<BoxContent | null>(
-        null
-    );
 
     const buildPromptContext = () => {
         let context = "Chat history:\n";
@@ -25,10 +20,10 @@ function App() {
             }\n`;
         });
 
-        if (lastCodeResponse) {
+        if (boxContent) {
             context += "\nCurrent component code:\n";
-            context += `HTML:\n${lastCodeResponse.html}\n`;
-            context += `JavaScript:\n${lastCodeResponse.js}\n`;
+            context += `HTML:\n${boxContent.html}\n`;
+            context += `JavaScript:\n${boxContent.js}\n`;
         }
         return context;
     };
@@ -37,7 +32,6 @@ function App() {
         try {
             const contextualPrompt = buildPromptContext() + "\nUser: " + prompt;
 
-            // Add user message to chat
             setChatHistory((prev) => [
                 ...prev,
                 { message: prompt, isUser: true },
@@ -53,7 +47,6 @@ function App() {
 
             const content = await response.json();
 
-            // Add assistant message to chat
             setChatHistory((prev) => [
                 ...prev,
                 {
@@ -62,14 +55,7 @@ function App() {
                 },
             ]);
 
-            setLastCodeResponse(content);
-            setBoxes((prev) => [
-                ...prev,
-                {
-                    id: crypto.randomUUID(),
-                    content,
-                },
-            ]);
+            setBoxContent(content);
         } catch (error) {
             console.error("Error generating component:", error);
             setChatHistory((prev) => [
@@ -91,21 +77,9 @@ function App() {
                         chatHistory={chatHistory}
                     />
 
-                    <div
-                        className={`flex-1 ${
-                            boxes.length === 0 ? "hidden" : ""
-                        }`}
-                    >
+                    <div className={`flex-1 ${!boxContent ? "hidden" : ""}`}>
                         <div className="bg-white rounded-lg border border-gray-200 p-6 h-[600px] overflow-y-auto shadow-sm hover:shadow-md transition-shadow">
-                            <div className="grid grid-cols-1 gap-8">
-                                {boxes.map((box) => (
-                                    <Box
-                                        key={box.id}
-                                        id={box.id}
-                                        content={box.content}
-                                    />
-                                ))}
-                            </div>
+                            {boxContent && <Box content={boxContent} />}
                         </div>
                     </div>
                 </div>

@@ -133,7 +133,7 @@ Example responses:
 Rules:
 1. Only use tools that are provided to you
 2. Always return data in a structured JSON format
-3. Include error handling for failed requests
+3. If no tools are needed, return a message saying "No tools needed"
 4. Consider timezone differences in all datetime operations
 5. For calendar events, always include start time, end time, and title at minimum
 `;
