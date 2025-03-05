@@ -1,4 +1,4 @@
-const tools = {
+export const tools = {
     google_calendar: 
         ["GOOGLECALENDAR_CREATE_EVENT", "GOOGLECALENDAR_FIND_EVENT"],
-}
+} as const

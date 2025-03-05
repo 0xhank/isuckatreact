@@ -24,23 +24,27 @@ async function setupUserConnectionIfNotExists(entityId = "default") {
     }
 }
 
-// Get connection first, then initialize tools
-const connection = await setupUserConnectionIfNotExists();
-
-// Get GitHub star action
-const tools = await composioToolset.getTools({
-    actions: ["GOOGLECALENDAR_CREATE_EVENT", "GOOGLECALENDAR_FIND_EVENT"],
-});
-
 // Create completion with instruction
 
 // Execute the tool call
 // const result = await composioToolset.handleToolCall(response);
 // console.log(result);
 
-async function createGoogleCalendarEvent(params: { title: string, description: string, start: Date, end: Date}) {
-    const instruction =
-        `Create an event in Google Calendar for ${params.title} on ${params.start} until ${params.end}.`;
+async function createGoogleCalendarEvent(params: {
+    title: string;
+    description: string;
+    start: Date;
+    end: Date;
+}) {
+    // Get connection first, then initialize tools
+    await setupUserConnectionIfNotExists();
+
+    // Get GitHub star action
+    const tools = await composioToolset.getTools({
+        actions: ["GOOGLECALENDAR_CREATE_EVENT", "GOOGLECALENDAR_FIND_EVENT"],
+    });
+
+    const instruction = `Create an event in Google Calendar for ${params.title} on ${params.start} until ${params.end}.`;
     const response = await openaiClient.chat.completions.create({
         model: "gpt-4",
         messages: [{ role: "user", content: instruction }],
@@ -52,6 +56,14 @@ async function createGoogleCalendarEvent(params: { title: string, description: s
 }
 
 async function listGoogleCalendarEvents() {
+    // Get connection first, then initialize tools
+    await setupUserConnectionIfNotExists();
+
+    // Get GitHub star action
+    const tools = await composioToolset.getTools({
+        actions: ["GOOGLECALENDAR_CREATE_EVENT", "GOOGLECALENDAR_FIND_EVENT"],
+    });
+
     const now = new Date();
     const midnightEastern = new Date(
         now.getFullYear(),
@@ -78,7 +90,7 @@ async function listGoogleCalendarEvents() {
     console.log("tool call result", result);
 }
 
-if (import.meta.url === new URL(import.meta.url).href) {
+if (require.main === module) {
     listGoogleCalendarEvents().catch(console.error);
     createGoogleCalendarEvent({
         title: "Getting coffee with John Doe",
@@ -89,4 +101,3 @@ if (import.meta.url === new URL(import.meta.url).href) {
 }
 
 export { createGoogleCalendarEvent, listGoogleCalendarEvents };
-

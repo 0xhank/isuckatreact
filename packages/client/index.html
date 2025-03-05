@@ -95,7 +95,6 @@
             function updateBox({
                 html = "",
                 js = "",
-                state = {},
                 spec = "",
                 description = "",
             }) {
@@ -105,13 +104,9 @@
                 lastCodeResponse = {
                     html,
                     js,
-                    state,
                     spec,
                     description,
                 };
-
-                // Update state
-                boxState = state;
 
                 // Create content with just the component
                 const content = `
@@ -127,8 +122,8 @@
 
                 // Execute JS in a safe context with access to box state
                 if (js) {
-                    const executeJs = new Function("box", "state", js);
-                    executeJs(box, boxState);
+                    const executeJs = new Function("box", js);
+                    executeJs(box);
                 }
             }
 
@@ -180,14 +175,7 @@
                     context += "\nCurrent component code:\n";
                     context += `HTML:\n${lastCodeResponse.html}\n`;
                     context += `JavaScript:\n${lastCodeResponse.js}\n`;
-                    context += `State:\n${JSON.stringify(
-                        lastCodeResponse.state,
-                        null,
-                        2
-                    )}\n`;
                 }
-
-                return context;
             }
 
             // Handle updates for all boxes

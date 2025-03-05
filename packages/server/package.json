@@ -2,9 +2,8 @@
     "name": "@four-boxes/server",
     "version": "1.0.0",
     "private": true,
-    "type": "module",
     "scripts": {
-        "dev": "nodemon --watch 'src/**/*.ts' --exec 'node --loader ts-node/esm' src/index.ts",
+        "dev": "nodemon --watch 'src/**/*.ts' --exec 'tsx src/index.ts'",
         "build": "tsc",
         "start": "node dist/index.js",
         "setup:composio": "node --loader ts-node/esm src/composio.ts"
