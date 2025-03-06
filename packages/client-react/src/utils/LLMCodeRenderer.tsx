@@ -5,6 +5,7 @@ interface LLMCodeRendererProps {
     js: string;
     initialState: Record<string, unknown>;
     onStateChange: (state: Record<string, unknown>) => void;
+    onCommand?: (command: string) => void;
 }
 
 // Extend Window interface to include our custom properties
@@ -20,6 +21,7 @@ export const LLMCodeRenderer: React.FC<LLMCodeRendererProps> = ({
     js,
     initialState,
     onStateChange,
+    onCommand,
 }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const headRef = useRef<HTMLHeadElement | null>(null);
@@ -45,7 +47,9 @@ export const LLMCodeRenderer: React.FC<LLMCodeRendererProps> = ({
             const stateScript = iframeDocument.createElement("script");
             stateScript.textContent = `
                 // State management
+                console.log("Initializing state");
                 let state = ${JSON.stringify(initialState)};
+                console.log("State initialized", state);
 
                 function setState(newState) {
                     const updatedState = typeof newState === 'function'
@@ -106,7 +110,7 @@ export const LLMCodeRenderer: React.FC<LLMCodeRendererProps> = ({
             for (const src of requiredScripts) {
                 await loadScript(src);
             }
-            await new Promise((resolve) => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 250));
             setInitialized(true);
         };
 
@@ -123,15 +127,16 @@ export const LLMCodeRenderer: React.FC<LLMCodeRendererProps> = ({
 
         if (!iframeDocument) return;
 
-        const renderContent = async () => {
-            try {
-                // Update HTML content
-                bodyRef.current!.innerHTML = html;
+        try {
+            // Update HTML content
+            console.log("Updating HTML content", html);
+            bodyRef.current!.innerHTML = html;
 
-                // Add only the component script
-                const componentScript = iframeDocument.createElement("script");
-                componentScript.textContent = `
+            // Add only the component script
+            const componentScript = iframeDocument.createElement("script");
+            componentScript.textContent = `
                     // Update state with new initial state
+                    console.log("Updating state", state);
                     state = ${JSON.stringify(initialState)};
                     
                     // Component initialization function
@@ -141,19 +146,18 @@ export const LLMCodeRenderer: React.FC<LLMCodeRendererProps> = ({
 
                     initComponent();
                 `;
-                bodyRef.current!.appendChild(componentScript);
-            } catch (error) {
-                console.error("Error initializing content:", error);
-            }
-        };
-
-        // Start the initialization process
-        renderContent();
+            bodyRef.current!.appendChild(componentScript);
+        } catch (error) {
+            console.error("Error initializing content:", error);
+        }
 
         // Handle state updates from iframe
         const handleMessage = (event: MessageEvent) => {
             if (event.data?.type === "STATE_UPDATE") {
                 onStateChange(event.data.state);
+            } else if (event.data?.type === "COMMAND" && onCommand) {
+                console.log("Command received", event.data);
+                onCommand(event.data.command);
             }
         };
 
@@ -162,7 +166,7 @@ export const LLMCodeRenderer: React.FC<LLMCodeRendererProps> = ({
         return () => {
             window.removeEventListener("message", handleMessage);
         };
-    }, [html, js, initialState, onStateChange, initialized]);
+    }, [html, js, initialState, onStateChange, onCommand, initialized]);
 
     return (
         <iframe
@@ -170,7 +174,7 @@ export const LLMCodeRenderer: React.FC<LLMCodeRendererProps> = ({
             title="LLM Generated Content"
             style={{
                 width: "100%",
-                height: "300px",
+                height: "100%",
                 border: "none",
                 overflow: "hidden",
             }}

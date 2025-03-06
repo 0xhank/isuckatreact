@@ -1,43 +1,68 @@
-export const dummyBoxContent = {
-    html: "<div class='flex flex-col items-center justify-center w-full h-full'><div id='elapsed-time' class='text-4xl font-bold mb-4'>0:00:00</div><div class='space-x-2'><button id='start-btn' class='bg-green-500 text-white px-4 py-2 rounded'>Start</button><button id='stop-btn' class='bg-red-500 text-white px-4 py-2 rounded'>Stop</button><button id='reset-btn' class='bg-blue-500 text-white px-4 py-2 rounded'>Reset</button></div></div>",
-    initialState: { isRunning: false, elapsedTime: 0, intervalId: null },
-    js:
-        "const elapsedTimeDisplay = document.getElementById('elapsed-time');\n" +
-        "const startBtn = document.getElementById('start-btn');\n" +
-        "const stopBtn = document.getElementById('stop-btn');\n" +
-        "const resetBtn = document.getElementById('reset-btn');\n" +
-        "\n" +
-        "function updateDisplay() {\n" +
-        "  const hours = Math.floor(state.elapsedTime / 3600000);\n" +
-        "  const minutes = Math.floor((state.elapsedTime % 3600000) / 60000);\n" +
-        "  const seconds = Math.floor((state.elapsedTime % 60000) / 1000);\n" +
-        "  elapsedTimeDisplay.textContent = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;\n" +
-        "}\n" +
-        "\n" +
-        "startBtn.onclick = () => {\n" +
-        "  if (!state.isRunning) {\n" +
-        "    const intervalId = setInterval(() => {\n" +
-        "      mergeState({ elapsedTime: state.elapsedTime + 1000 });\n" +
-        "      updateDisplay();\n" +
-        "    }, 1000);\n" +
-        "    mergeState({ isRunning: true, intervalId });\n" +
-        "  }\n" +
-        "};\n" +
-        "\n" +
-        "stopBtn.onclick = () => {\n" +
-        "  if (state.isRunning && state.intervalId) {\n" +
-        "    clearInterval(state.intervalId);\n" +
-        "    mergeState({ isRunning: false, intervalId: null });\n" +
-        "  }\n" +
-        "};\n" +
-        "\n" +
-        "resetBtn.onclick = () => {\n" +
-        "  clearInterval(state.intervalId);\n" +
-        "  mergeState({ isRunning: false, elapsedTime: 0, intervalId: null });\n" +
-        "  updateDisplay();\n" +
-        "};\n" +
-        "\n" +
-        "updateDisplay();",
-    description: "A stopwatch component",
-    spec: "A stopwatch component that displays the elapsed time and allows the user to start, stop, and reset the timer.",
+export const dummyBoxContent = null;
+export const _dummyBoxContent = {
+    spec: "A stopwatch component with dynamic styling capabilities",
+    html: `<div class='w-full h-full flex flex-col items-center justify-center bg-blue-100 p-8 rounded-xl shadow-lg'>
+        <div id='stopwatch' class='text-3xl font-bold text-blue-600 mb-4'>00:00:00</div>
+        <div class='space-x-2'>
+            <button id='start' class='bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors'>Start</button>
+            <button id='stop' class='bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors'>Stop</button>
+            <button id='reset' class='bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors'>Reset</button>
+            <button id='change-style' class='bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors'>Change Style</button>
+        </div>
+    </div>`,
+    initialState: {
+        time: 0,
+        isRunning: false,
+        intervalId: null,
+    },
+    js: `
+        const stopwatchDisplay = document.getElementById('stopwatch');
+        const startButton = document.getElementById('start');
+        const stopButton = document.getElementById('stop');
+        const resetButton = document.getElementById('reset');
+        const changeStyleButton = document.getElementById('change-style');
+
+        function updateDisplay() {
+            const hours = Math.floor(state.time / 3600);
+            const minutes = Math.floor((state.time % 3600) / 60);
+            const seconds = state.time % 60;
+            stopwatchDisplay.textContent = \`\${String(hours).padStart(2, '0')}:\${String(minutes).padStart(2, '0')}:\${String(seconds).padStart(2, '0')}\`;
+        }
+
+        startButton.onclick = () => {
+            if (!state.isRunning) {
+                const intervalId = setInterval(() => {
+                    mergeState({ time: state.time + 1 });
+                    updateDisplay();
+                }, 1000);
+                mergeState({ isRunning: true, intervalId });
+            }
+        };
+
+        stopButton.onclick = () => {
+            if (state.isRunning) {
+                clearInterval(state.intervalId);
+                mergeState({ isRunning: false, intervalId: null });
+            }
+        };
+
+        resetButton.onclick = () => {
+            clearInterval(state.intervalId);
+            mergeState({ time: 0, isRunning: false, intervalId: null });
+            updateDisplay();
+        };
+
+        changeStyleButton.onclick = () => {
+            console.log("changeStyleButton clicked");
+            // Send command to update styles while preserving state and logic
+            window.parent.postMessage({
+                type: 'COMMAND',
+                command: 'update the styles of the stopwatch to a random fun design',
+            }, '*');
+        };
+
+        updateDisplay();
+    `,
+    description: "A stopwatch with dynamic styling capabilities",
+    type: '"GEN"',
 };

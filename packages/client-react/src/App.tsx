@@ -11,7 +11,7 @@ import { dummyBoxContent } from "./utils/dummyBoxContent";
 const queryClient = new QueryClient();
 
 // Define response types
-type ResponseType = "GEN" | "UPDATE" | "COMMAND" | "PROMPT";
+type ResponseType = "GEN" | "UPDATE" | "PROMPT";
 
 interface OAuthResponse {
     type: "OAUTH_REQUIRED";
@@ -28,7 +28,7 @@ function AppContent() {
         dummyBoxContent
     );
     const [boxState, setBoxState] = useState<Record<string, unknown>>(
-        dummyBoxContent.initialState
+        dummyBoxContent?.initialState || {}
     );
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
@@ -98,25 +98,11 @@ function AppContent() {
 
                 case "UPDATE":
                     // Keep existing state, update component
+                    console.log("UPDATED", data);
                     setBoxContent(data);
                     break;
 
-                case "COMMAND":
-                    // Only update state, keep existing component
-                    if (data.js) {
-                        try {
-                            // Create a safe function to update state
-                            const updateState = new Function(
-                                "state",
-                                "setState",
-                                data.js
-                            );
-                            updateState(boxState, setBoxState);
-                        } catch (error) {
-                            console.error("Error updating state:", error);
-                        }
-                    }
-                    break;
+              
 
                 case "PROMPT":
                     // Just show the message, no component changes
@@ -131,7 +117,9 @@ function AppContent() {
                             ? "OAuth authentication required"
                             : data.type === "PROMPT"
                             ? data.description
-                            : `Generated component: ${data.description}`,
+                            : data.type == "GEN"
+                            ? `Generated component: ${data.description}`
+                            : `Updated component: ${data.description}`,
                     isUser: false,
                 },
             ]);
@@ -145,6 +133,11 @@ function AppContent() {
                 },
             ]);
         }
+    };
+
+    const handleCommand = async (command: string) => {
+        console.log("Command received", command);
+        await handlePromptSubmit(command);
     };
 
     useEffect(() => {
@@ -192,13 +185,11 @@ function AppContent() {
                                                 content={boxContent}
                                                 state={boxState}
                                                 onStateChange={setBoxState}
+                                                onCommand={handleCommand}
                                             />
                                         )}
-                                        
                                     </div>
-                                   
                                 </div>
-
                             </div>
                             {boxContent && (
                                 <StateDebugger
@@ -209,7 +200,7 @@ function AppContent() {
                         </div>
                     ) : (
                         <div className="text-center mt-10">
-                            <h1 className="text-2xl mb-4">Welcome to Jasper</h1>
+                            <h1 className="text-2xl mb-4">Welcome to Casper</h1>
                             <p>Please log in to continue</p>
                         </div>
                     )}

@@ -8,6 +8,37 @@ For reference, the current date and time is ${new Date().toISOString()}. The use
 
 Any data from tools will be provided. The JavaScript code should ONLY handle rendering and interactions - DO NOT fetch data in the JavaScript code.
 
+For complex tasks, components can send commands to trigger prompts. Use this syntax:
+window.parent.postMessage({
+    type: 'COMMAND',
+    command: 'Detailed prompt explaining what to generate'
+}, '*');
+
+Example command uses:
+1. Generating new components:
+   window.parent.postMessage({
+       type: 'COMMAND',
+       command: 'Create a pie chart showing the current data distribution'
+   }, '*');
+
+2. Updating existing components:
+   window.parent.postMessage({
+       type: 'COMMAND',
+       command: 'Update the current component to use a dark theme'
+   }, '*');
+
+3. Preserving state while updating:
+   window.parent.postMessage({
+       type: 'COMMAND',
+       command: 'Update the styling while preserving the current state',
+   }, '*');
+
+4. Creating calendar events:
+   window.parent.postMessage({
+       type: 'COMMAND',
+       command: 'Create a form component for adding a new calendar event',
+   }, '*');
+
 Format:
 {
     "spec": "string explaining the high level technical approach behind the design. Be specific about the html and js code you will generate.",
@@ -35,6 +66,15 @@ Example 2 - Calendar Events (with tool data):
     "description": "A calendar component that displays events in a list format, showing the title and start time of each event."
 }
 
+Example 3 - Calendar Event Creation:
+{
+    "spec": "I will create a calendar event form that sends a command to generate a new event when submitted.",
+    "html": "<div class='w-full h-full flex flex-col p-4'><form id='eventForm' class='space-y-4'><input type='text' id='title' placeholder='Event Title' class='w-full p-2 border rounded'><input type='datetime-local' id='start' class='w-full p-2 border rounded'><input type='datetime-local' id='end' class='w-full p-2 border rounded'><textarea id='description' placeholder='Description' class='w-full p-2 border rounded h-24'></textarea><button type='submit' class='w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600'>Create Event</button></form></div>",
+    "initialState": { "submitting": false },
+    "js": "const form = document.getElementById('eventForm');\n\nform.onsubmit = (e) => {\n  e.preventDefault();\n  if (state.submitting) return;\n\n  const eventData = {\n    title: document.getElementById('title').value,\n    start: document.getElementById('start').value,\n    end: document.getElementById('end').value,\n    description: document.getElementById('description').value\n  };\n\n  mergeState({ submitting: true });\n\n  window.parent.postMessage({\n    type: 'COMMAND',\n    command: 'generate',\n    prompt: 'Add this new event to the calendar and update the view',\n    params: {\n      action: 'create_event',\n      eventData: eventData,\n      currentState: state\n    }\n  }, '*');\n};",
+    "description": "A form component for creating new calendar events that delegates the creation process to the AI."
+}
+
 Rules:
 1. Return ONLY the JSON object - no markdown, no explanations, no additional text
 2. The style should always fit in a box. Use w-full and h-full to make sure the component takes the full size of the box
@@ -54,7 +94,7 @@ Rules:
 16. When using intervals or timers, store IDs in state for proper cleanup
 
 This is a ${promptType} type request. ${
-    promptType === "UPDATE" || promptType === "COMMAND"
+    promptType === "UPDATE"
         ? "Maintain existing state structure and only modify what is necessary."
         : ""
 }
