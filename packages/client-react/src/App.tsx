@@ -5,12 +5,26 @@ import "./App.css";
 import { Box, BoxContent } from "./components/Box";
 import { ChatInterface, ChatMessage } from "./components/ChatInterface";
 import { LoginButton } from "./components/LoginButton";
+import { StateDebugger } from "./components/StateDebugger";
 
 const queryClient = new QueryClient();
+
+// Define response types
+type ResponseType = "GEN" | "UPDATE" | "COMMAND" | "PROMPT";
+
+interface OAuthResponse {
+    type: "OAUTH_REQUIRED";
+    redirectUrl: string;
+}
+
+interface GenerateResponse extends BoxContent {
+    type: ResponseType;
+}
 
 function AppContent() {
     const { isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
     const [boxContent, setBoxContent] = useState<BoxContent | null>(null);
+    const [boxState, setBoxState] = useState<Record<string, unknown>>({});
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
     const buildPromptContext = () => {
@@ -25,6 +39,9 @@ function AppContent() {
             context += "\nCurrent component code:\n";
             context += `HTML:\n${boxContent.html}\n`;
             context += `JavaScript:\n${boxContent.js}\n`;
+            context += `\nCurrent component state:\n${JSON.stringify(
+                boxState
+            )}\n`;
         }
         return context;
     };
@@ -49,26 +66,70 @@ function AppContent() {
                 body: JSON.stringify({ prompt: contextualPrompt }),
             });
 
-            const data = await response.json();
+            const data = (await response.json()) as
+                | GenerateResponse
+                | OAuthResponse;
 
             // If we need OAuth, open in a new tab
             if (response.status === 401 && data.type === "OAUTH_REQUIRED") {
                 // Store the pending prompt
                 localStorage.setItem("pendingPrompt", prompt);
                 // Open OAuth flow in a new tab
-                window.open(data.redirectUrl, "_blank", "noopener,noreferrer");
+                window.open(
+                    (data as OAuthResponse).redirectUrl,
+                    "_blank",
+                    "noopener,noreferrer"
+                );
                 return;
+            }
+
+            // Handle different response types
+            switch (data.type) {
+                case "GEN":
+                    // Reset state for new component
+                    setBoxState((data as GenerateResponse).initialState || {});
+                    setBoxContent(data);
+                    break;
+
+                case "UPDATE":
+                    // Keep existing state, update component
+                    setBoxContent(data);
+                    break;
+
+                case "COMMAND":
+                    // Only update state, keep existing component
+                    if (data.js) {
+                        try {
+                            // Create a safe function to update state
+                            const updateState = new Function(
+                                "state",
+                                "setState",
+                                data.js
+                            );
+                            updateState(boxState, setBoxState);
+                        } catch (error) {
+                            console.error("Error updating state:", error);
+                        }
+                    }
+                    break;
+
+                case "PROMPT":
+                    // Just show the message, no component changes
+                    break;
             }
 
             setChatHistory((prev) => [
                 ...prev,
                 {
-                    message: `Generated component: ${data.description}`,
+                    message:
+                        data.type === "OAUTH_REQUIRED"
+                            ? "OAuth authentication required"
+                            : data.type === "PROMPT"
+                            ? data.description
+                            : `Generated component: ${data.description}`,
                     isUser: false,
                 },
             ]);
-
-            setBoxContent(data);
         } catch (error) {
             console.error("Error generating component:", error);
             setChatHistory((prev) => [
@@ -108,21 +169,35 @@ function AppContent() {
                     </div>
 
                     {isAuthenticated ? (
-                        <div className="flex justify-center gap-6">
-                            <ChatInterface
-                                onSubmit={handlePromptSubmit}
-                                chatHistory={chatHistory}
-                            />
+                        <div className="flex flex-col gap-6">
+                            <div className="flex justify-center gap-6">
+                                <ChatInterface
+                                    onSubmit={handlePromptSubmit}
+                                    chatHistory={chatHistory}
+                                />
 
-                            <div
-                                className={`flex-1 ${
-                                    !boxContent ? "hidden" : ""
-                                }`}
-                            >
-                                <div className="bg-white rounded-lg border border-gray-200 p-6 h-[600px] overflow-y-auto shadow-sm hover:shadow-md transition-shadow">
-                                    {boxContent && <Box content={boxContent} />}
+                                <div
+                                    className={`flex-1 ${
+                                        !boxContent ? "hidden" : ""
+                                    }`}
+                                >
+                                    <div className="bg-white rounded-lg border border-gray-200 p-6 h-[600px] overflow-y-auto shadow-sm hover:shadow-md transition-shadow">
+                                        {boxContent && (
+                                            <Box
+                                                content={boxContent}
+                                                state={boxState}
+                                                onStateChange={setBoxState}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
+                            {boxContent && (
+                                <StateDebugger
+                                    state={boxState}
+                                    content={boxContent}
+                                />
+                            )}
                         </div>
                     ) : (
                         <div className="text-center mt-10">
