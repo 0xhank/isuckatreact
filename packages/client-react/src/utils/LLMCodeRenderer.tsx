@@ -22,72 +22,133 @@ export const LLMCodeRenderer: React.FC<LLMCodeRendererProps> = ({
     onStateChange,
 }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
-    const [iframeId, setIframeId] = useState<number>(0);
+    const headRef = useRef<HTMLHeadElement | null>(null);
+    const bodyRef = useRef<HTMLBodyElement | null>(null);
+    const [initialized, setInitialized] = useState(false);
 
+    // Setup iframe structure once
     useEffect(() => {
         if (!iframeRef.current) return;
-        console.log("useEffect with state", initialState, html, js);
 
-        // Get access to the iframe document
         const iframe = iframeRef.current;
         const iframeDocument =
             iframe.contentDocument || iframe.contentWindow?.document;
 
         if (!iframeDocument) return;
 
-        const newIframeId = Math.random();
-        setIframeId(newIframeId);
-        // Only initialize the iframe once
-        // Write the complete HTML document with embedded JavaScript
-        iframeDocument.open();
-        iframeDocument.write(`
-                <!DOCTYPE html>
-                <html>
-                    <head>
-                        <script src="https://cdn.tailwindcss.com"></script>
-                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-                    </head>
-                    <body>
-                        ${html}
-                        <script>
-                            // State management
-                            let state = ${JSON.stringify(initialState)};
+        const initialize = async () => {
+            // Get existing head and body elements
+            headRef.current = iframeDocument.head;
+            bodyRef.current = iframeDocument.body as HTMLBodyElement;
 
-                            function setState(newState) {
-                                const updatedState = typeof newState === 'function'
-                                    ? newState(state)
-                                    : { ...state, ...newState };
-                                
-                                state = updatedState;
-                                
-                                // Notify parent
-                                window.parent.postMessage({ 
-                                    type: 'STATE_UPDATE', 
-                                    state: state 
-                                }, '*');
-                                
-                                // Re-run component logic with new state
-                                initComponent();
-                            }
+            // Add state management script once
+            const stateScript = iframeDocument.createElement("script");
+            stateScript.textContent = `
+                // State management
+                let state = ${JSON.stringify(initialState)};
 
-                            function mergeState(partialState) {
-                                setState(current => ({
-                                    ...current,
-                                    ...partialState
-                                }));
-                            }
+                function setState(newState) {
+                    const updatedState = typeof newState === 'function'
+                        ? newState(state)
+                        : { ...state, ...newState };
+                    
+                    state = updatedState;
+                    
+                    // Notify parent
+                    window.parent.postMessage({ 
+                        type: 'STATE_UPDATE', 
+                        state: state 
+                    }, '*');
+                    
+                    // Re-run component logic with new state
+                    if (typeof initComponent === 'function') {
+                        initComponent();
+                    }
+                }
 
-                            // Component initialization function
-                            function initComponent() {
-                                ${js}
-                            }
+                function mergeState(partialState) {
+                    setState(current => ({
+                        ...current,
+                        ...partialState
+                    }));
+                }
+            `;
+            headRef.current.appendChild(stateScript);
 
-                            initComponent();
-                        </script>
-                    </body>
-                </html>
-            `);
-        iframeDocument.close();
+            // Create a promise-based script loader with check for existing script
+            const loadScript = (src: string): Promise<void> => {
+                return new Promise((resolve, reject) => {
+                    if (!headRef.current) return reject();
+
+                    // Check if script is already loaded
+                    const existingScript = iframeDocument.querySelector(
+                        `script[src="${src}"]`
+                    );
+                    if (existingScript) {
+                        resolve();
+                        return;
+                    }
+
+                    const script = iframeDocument.createElement("script");
+                    script.src = src;
+                    script.onload = () => resolve();
+                    script.onerror = () => reject();
+                    headRef.current.appendChild(script);
+                });
+            };
+
+            // Only load scripts if needed
+            const requiredScripts = [
+                "https://cdn.tailwindcss.com",
+                "https://cdn.jsdelivr.net/npm/chart.js",
+            ];
+
+            for (const src of requiredScripts) {
+                await loadScript(src);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            setInitialized(true);
+        };
+
+        initialize();
+    }, []); // Empty dependency array - only run once
+
+    // Handle content updates
+    useEffect(() => {
+        if (!bodyRef.current || !iframeRef.current || !initialized) return;
+
+        const iframe = iframeRef.current;
+        const iframeDocument =
+            iframe.contentDocument || iframe.contentWindow?.document;
+
+        if (!iframeDocument) return;
+
+        const renderContent = async () => {
+            try {
+                // Update HTML content
+                bodyRef.current!.innerHTML = html;
+
+                // Add only the component script
+                const componentScript = iframeDocument.createElement("script");
+                componentScript.textContent = `
+                    // Update state with new initial state
+                    state = ${JSON.stringify(initialState)};
+                    
+                    // Component initialization function
+                    function initComponent() {
+                        ${js}
+                    }
+
+                    initComponent();
+                `;
+                bodyRef.current!.appendChild(componentScript);
+            } catch (error) {
+                console.error("Error initializing content:", error);
+            }
+        };
+
+        // Start the initialization process
+        renderContent();
 
         // Handle state updates from iframe
         const handleMessage = (event: MessageEvent) => {
@@ -98,21 +159,13 @@ export const LLMCodeRenderer: React.FC<LLMCodeRendererProps> = ({
 
         window.addEventListener("message", handleMessage);
 
-        // Wait for content to load before adjusting height
-        setTimeout(() => {
-            if (iframeDocument.body) {
-                iframe.style.height = `${iframeDocument.body.scrollHeight}px`;
-            }
-        }, 100);
-
         return () => {
             window.removeEventListener("message", handleMessage);
         };
-    }, [html, js, initialState, onStateChange]);
+    }, [html, js, initialState, onStateChange, initialized]);
 
     return (
         <iframe
-            key={`iframe-${iframeId}`}
             ref={iframeRef}
             title="LLM Generated Content"
             style={{

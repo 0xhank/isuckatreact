@@ -6,6 +6,7 @@ import { Box, BoxContent } from "./components/Box";
 import { ChatInterface, ChatMessage } from "./components/ChatInterface";
 import { LoginButton } from "./components/LoginButton";
 import { StateDebugger } from "./components/StateDebugger";
+import { dummyBoxContent } from "./utils/dummyBoxContent";
 
 const queryClient = new QueryClient();
 
@@ -23,8 +24,12 @@ interface GenerateResponse extends BoxContent {
 
 function AppContent() {
     const { isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
-    const [boxContent, setBoxContent] = useState<BoxContent | null>(null);
-    const [boxState, setBoxState] = useState<Record<string, unknown>>({});
+    const [boxContent, setBoxContent] = useState<BoxContent | null>(
+        dummyBoxContent
+    );
+    const [boxState, setBoxState] = useState<Record<string, unknown>>(
+        dummyBoxContent.initialState
+    );
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
     const buildPromptContext = () => {
@@ -189,8 +194,11 @@ function AppContent() {
                                                 onStateChange={setBoxState}
                                             />
                                         )}
+                                        
                                     </div>
+                                   
                                 </div>
+
                             </div>
                             {boxContent && (
                                 <StateDebugger
