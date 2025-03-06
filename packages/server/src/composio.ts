@@ -8,7 +8,17 @@ const client = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const composioToolset = new OpenAIToolSet();
 
-async function setupUserConnectionIfNotExists(entityId = "default") {
+export class ComposioAuthRequiredError extends Error {
+    redirectUrl: string;
+
+    constructor(redirectUrl: string) {
+        super("Authentication required");
+        this.redirectUrl = redirectUrl;
+        this.name = "ComposioAuthRequiredError";
+    }
+}
+
+export async function setupUserConnectionIfNotExists(entityId = "default") {
     const entity = client.getEntity(entityId);
     try {
         const connection = await entity.getConnection({
@@ -19,8 +29,10 @@ async function setupUserConnectionIfNotExists(entityId = "default") {
         const newConnection = await entity.initiateConnection({
             appName: "googlecalendar",
         });
-        console.log("Log in via: ", newConnection.redirectUrl);
-        return await newConnection.waitUntilActive(100);
+        if (!newConnection.redirectUrl) {
+            throw new Error("No redirect URL found");
+        }
+        throw new ComposioAuthRequiredError(newConnection.redirectUrl);
     }
 }
 

@@ -1,10 +1,14 @@
-import { Composio, OpenAIToolSet } from "composio-core";
+import { OpenAIToolSet } from "composio-core";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import { auth } from "express-oauth2-jwt-bearer";
 import { OpenAI } from "openai";
 import { z } from "zod";
+import {
+    ComposioAuthRequiredError,
+    setupUserConnectionIfNotExists,
+} from "./composio";
 import { tools as availableTools } from "./tools";
 
 const models = {
@@ -141,20 +145,12 @@ Rules:
 
 dotenv.config();
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-const client = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
-const composioToolset = new OpenAIToolSet();
-const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const jwtCheck = auth({
     audience: `https://${process.env.AUTH0_DOMAIN}/api/v2/`,
@@ -164,7 +160,10 @@ const jwtCheck = auth({
 
 app.use(jwtCheck);
 
-async function getRelevantTools(prompt: string): Promise<string[]> {
+async function getRelevantTools(
+    openai: OpenAI,
+    prompt: string
+): Promise<string[]> {
     const response = await openai.chat.completions.create({
         model: models.gpt4oMini,
         messages: [
@@ -201,18 +200,37 @@ async function getRelevantTools(prompt: string): Promise<string[]> {
 // API routes
 app.post("/api/generate", async (req, res) => {
     try {
-        // Get user info from the token
         const auth = req.auth!;
-        const userId = auth.payload.sub; // unique user id
-        const userEmail = auth.payload.email;
+        const userId = auth.payload.sub;
+
+        try {
+            await setupUserConnectionIfNotExists(userId);
+        } catch (error) {
+            if (error instanceof ComposioAuthRequiredError) {
+                return res.status(401).json({
+                    type: "OAUTH_REQUIRED",
+                    redirectUrl: error.redirectUrl,
+                });
+            }
+            return res.status(500).json({ error: "Server error" });
+        }
 
         const { prompt } = promptSchema.parse(req.body);
 
         // You can now use userId/userEmail in your logic
-        console.log(`Request from user: ${userId} (${userEmail})`);
+        await setupUserConnectionIfNotExists(userId);
+
+        const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+
+        const composioToolset = new OpenAIToolSet({
+            apiKey: process.env.COMPOSIO_API_KEY,
+            entityId: userId,
+        });
 
         // Step 1: Get relevant tools based on the prompt
-        const selectedTools = await getRelevantTools(prompt);
+        const selectedTools = await getRelevantTools(openai, prompt);
         // console.log("Selected tools:", selectedTools);
 
         // Step 2: Initialize tools if any were selected

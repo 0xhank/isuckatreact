@@ -1,6 +1,6 @@
 import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import { Box, BoxContent } from "./components/Box";
 import { ChatInterface, ChatMessage } from "./components/ChatInterface";
@@ -49,17 +49,26 @@ function AppContent() {
                 body: JSON.stringify({ prompt: contextualPrompt }),
             });
 
-            const content = await response.json();
+            const data = await response.json();
+
+            // If we need OAuth, open in a new tab
+            if (response.status === 401 && data.type === "OAUTH_REQUIRED") {
+                // Store the pending prompt
+                localStorage.setItem("pendingPrompt", prompt);
+                // Open OAuth flow in a new tab
+                window.open(data.redirectUrl, "_blank", "noopener,noreferrer");
+                return;
+            }
 
             setChatHistory((prev) => [
                 ...prev,
                 {
-                    message: `Generated component: ${content.description}`,
+                    message: `Generated component: ${data.description}`,
                     isUser: false,
                 },
             ]);
 
-            setBoxContent(content);
+            setBoxContent(data);
         } catch (error) {
             console.error("Error generating component:", error);
             setChatHistory((prev) => [
@@ -71,6 +80,20 @@ function AppContent() {
             ]);
         }
     };
+
+    useEffect(() => {
+        const checkPendingOperations = async () => {
+            const pendingPrompt = localStorage.getItem("pendingPrompt");
+            if (pendingPrompt) {
+                localStorage.removeItem("pendingPrompt");
+                await handlePromptSubmit(pendingPrompt);
+            }
+        };
+
+        if (isAuthenticated) {
+            checkPendingOperations();
+        }
+    }, [isAuthenticated]);
 
     if (isLoading) {
         return <div>Loading...</div>;
