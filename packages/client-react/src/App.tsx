@@ -1,14 +1,15 @@
+import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import "./App.css";
-import { Box } from "./components/Box";
-import { ChatInterface } from "./components/ChatInterface";
-import { BoxContent } from "./types/box";
-import { ChatMessage } from "./types/chat";
+import { Box, BoxContent } from "./components/Box";
+import { ChatInterface, ChatMessage } from "./components/ChatInterface";
+import { LoginButton } from "./components/LoginButton";
 
 const queryClient = new QueryClient();
 
-function App() {
+function AppContent() {
+    const { isAuthenticated, isLoading } = useAuth0();
     const [boxContent, setBoxContent] = useState<BoxContent | null>(null);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
@@ -68,24 +69,63 @@ function App() {
         }
     };
 
+    if (isLoading) {
+        return <div>Loading...</div>;
+    }
+
     return (
         <QueryClientProvider client={queryClient}>
             <div className="min-h-screen min-w-screen flex justify-center bg-gray-50 text-black">
-                <div className="w-full max-w-[1200px] flex justify-center p-4 gap-6">
-                    <ChatInterface
-                        onSubmit={handlePromptSubmit}
-                        chatHistory={chatHistory}
-                    />
-
-                    <div className={`flex-1 ${!boxContent ? "hidden" : ""}`}>
-                        <div className="bg-white rounded-lg border border-gray-200 p-6 h-[600px] overflow-y-auto shadow-sm hover:shadow-md transition-shadow">
-                            {boxContent && <Box content={boxContent} />}
-                        </div>
+                <div className="w-full max-w-[1200px] flex flex-col p-4 gap-6">
+                    <div className="flex justify-end">
+                        <LoginButton />
                     </div>
+
+                    {isAuthenticated ? (
+                        <div className="flex justify-center gap-6">
+                            <ChatInterface
+                                onSubmit={handlePromptSubmit}
+                                chatHistory={chatHistory}
+                            />
+
+                            <div
+                                className={`flex-1 ${
+                                    !boxContent ? "hidden" : ""
+                                }`}
+                            >
+                                <div className="bg-white rounded-lg border border-gray-200 p-6 h-[600px] overflow-y-auto shadow-sm hover:shadow-md transition-shadow">
+                                    {boxContent && <Box content={boxContent} />}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center mt-10">
+                            <h1 className="text-2xl mb-4">Welcome to Jasper</h1>
+                            <p>Please log in to continue</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </QueryClientProvider>
     );
 }
 
-export default App;
+export default function App() {
+    return (
+        <Auth0Provider
+            domain={import.meta.env.VITE_AUTH0_DOMAIN}
+            clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
+            authorizationParams={{
+                redirect_uri: window.location.origin,
+                scope: "openid profile email",
+                response_type: "code",
+                audience: `https://${
+                    import.meta.env.VITE_AUTH0_DOMAIN
+                }/api/v2/`,
+            }}
+            cacheLocation="localstorage"
+        >
+            <AppContent />
+        </Auth0Provider>
+    );
+}
