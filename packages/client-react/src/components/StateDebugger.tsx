@@ -8,6 +8,28 @@ interface StateDebuggerProps {
 
 type DebugTab = "state" | "html" | "js";
 
+const prettifyHtml = (html: string): string => {
+    const tab = "    "; // 4 spaces
+    let result = "";
+    let indent = "";
+
+    html.split(/>\s*</).forEach((element) => {
+        if (element.match(/^\/\w/)) {
+            // Closing tag
+            indent = indent.substring(tab.length);
+        }
+
+        result += indent + "<" + element + ">\n";
+
+        if (element.match(/^<?\w[^>]*[^\/]$/) && !element.startsWith("input")) {
+            // Opening tag
+            indent += tab;
+        }
+    });
+
+    return result.substring(1, result.length - 2); // Remove first < and last >
+};
+
 export const StateDebugger: React.FC<StateDebuggerProps> = ({
     state,
     content,
@@ -35,7 +57,7 @@ export const StateDebugger: React.FC<StateDebuggerProps> = ({
             case "state":
                 return JSON.stringify(state, null, 2);
             case "html":
-                return content.html;
+                return prettifyHtml(content.html);
             case "js":
                 return content.js;
             default:
@@ -56,7 +78,7 @@ export const StateDebugger: React.FC<StateDebuggerProps> = ({
                 </div>
             </div>
             <div className="p-4 pt-0">
-                <pre className="mt-4 text-xs bg-white p-3 rounded border border-gray-200 overflow-auto max-h-[200px] font-mono">
+                <pre className="mt-4 text-xs bg-white p-3 rounded border border-gray-200 overflow-auto max-h-[500px] font-mono">
                     {renderContent()}
                 </pre>
             </div>
