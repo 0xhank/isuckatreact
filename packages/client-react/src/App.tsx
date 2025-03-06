@@ -9,7 +9,7 @@ import { LoginButton } from "./components/LoginButton";
 const queryClient = new QueryClient();
 
 function AppContent() {
-    const { isAuthenticated, isLoading } = useAuth0();
+    const { isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
     const [boxContent, setBoxContent] = useState<BoxContent | null>(null);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
@@ -33,6 +33,8 @@ function AppContent() {
         try {
             const contextualPrompt = buildPromptContext() + "\nUser: " + prompt;
 
+            const token = await getAccessTokenSilently();
+
             setChatHistory((prev) => [
                 ...prev,
                 { message: prompt, isUser: true },
@@ -42,6 +44,7 @@ function AppContent() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({ prompt: contextualPrompt }),
             });

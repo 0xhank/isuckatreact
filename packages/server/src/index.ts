@@ -2,6 +2,7 @@ import { Composio, OpenAIToolSet } from "composio-core";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import { auth } from "express-oauth2-jwt-bearer";
 import { OpenAI } from "openai";
 import { z } from "zod";
 import { tools as availableTools } from "./tools";
@@ -155,6 +156,14 @@ const client = new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
 const composioToolset = new OpenAIToolSet();
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+const jwtCheck = auth({
+    audience: `https://${process.env.AUTH0_DOMAIN}/api/v2/`,
+    issuerBaseURL: `https://${process.env.AUTH0_DOMAIN}`,
+    tokenSigningAlg: "RS256",
+});
+
+app.use(jwtCheck);
+
 async function getRelevantTools(prompt: string): Promise<string[]> {
     const response = await openai.chat.completions.create({
         model: models.gpt4oMini,
@@ -192,8 +201,15 @@ async function getRelevantTools(prompt: string): Promise<string[]> {
 // API routes
 app.post("/api/generate", async (req, res) => {
     try {
+        // Get user info from the token
+        const auth = req.auth!;
+        const userId = auth.payload.sub; // unique user id
+        const userEmail = auth.payload.email;
+
         const { prompt } = promptSchema.parse(req.body);
-        // console.log("generating", prompt);
+
+        // You can now use userId/userEmail in your logic
+        console.log(`Request from user: ${userId} (${userEmail})`);
 
         // Step 1: Get relevant tools based on the prompt
         const selectedTools = await getRelevantTools(prompt);
@@ -295,8 +311,8 @@ app.post("/api/generate", async (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`🚀 Server running at http://localhost:${port}`);
-    console.log(`📝 Send POST requests to http://localhost:${port}/generate`);
+    console.log(`Server running at http://localhost:${port}`);
+    console.log(`Send POST requests to http://localhost:${port}/generate`);
 });
 
 // Error handling for uncaught exceptions
