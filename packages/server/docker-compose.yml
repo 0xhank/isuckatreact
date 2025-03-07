@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+    server:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        ports:
+            - "${PORT:-3000}:${PORT:-3000}"
+        env_file:
+            - .env
+        environment:
+            - NODE_ENV=production
+        restart: unless-stopped
+        # If you need to persist data, you can uncomment and configure volumes
+        # volumes:
+        #   - ./data:/app/data
