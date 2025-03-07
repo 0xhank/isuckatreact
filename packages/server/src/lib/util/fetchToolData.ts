@@ -1,8 +1,11 @@
 import { OpenAIToolSet } from "composio-core";
 import OpenAI from "openai";
-import { createToolSelectionPrompt, createToolUsagePrompt } from "../prompts";
-import { models } from "..";
-import { tools as availableTools } from "../tools";
+import { models } from "../..";
+import {
+    createToolSelectionPrompt,
+    createToolUsagePrompt,
+} from "../../prompts";
+import { tools as availableTools } from "../data/tools";
 
 /**
  * Fetches and processes tool data based on the user's prompt

@@ -1,15 +1,20 @@
 import { Auth0Provider, useAuth0 } from "@auth0/auth0-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
-import { Box, BoxContent } from "./components/Box";
 import { ChatInterface, ChatMessage } from "./components/ChatInterface";
 import { LoginButton } from "./components/LoginButton";
-import { StateDebugger } from "./components/StateDebugger";
+import { ReactLiveRenderer } from "./components/ReactLiveRenderer";
 import { dummyBoxContent } from "./utils/dummyBoxContent";
 
 const queryClient = new QueryClient();
 
+type BoxContext = {
+    spec: string;
+    jsx: string;
+    initialState: Record<string, unknown>;
+    description: string;
+};
 // Define response types
 type ResponseType = "GEN" | "UPDATE" | "PROMPT";
 
@@ -18,19 +23,35 @@ interface OAuthResponse {
     redirectUrl: string;
 }
 
-interface GenerateResponse extends BoxContent {
+interface GenerateResponse extends BoxContext {
     type: ResponseType;
+}
+
+// Add Window interface extension
+declare global {
+    interface Window {
+        mergeState: (state: Record<string, unknown>) => void;
+    }
 }
 
 function AppContent() {
     const { isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
-    const [boxContent, setBoxContent] = useState<BoxContent | null>(
-        dummyBoxContent
-    );
-    const [boxState, setBoxState] = useState<Record<string, unknown>>(
-        dummyBoxContent?.initialState || {}
-    );
+    const [boxContent, setBoxContent] = useState<BoxContext | null>(dummyBoxContent);
+    const boxState = useRef<Record<string, unknown>>({});
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+
+    const mergeState = (state: Record<string, unknown>) => {
+        console.log("State merged", state);
+        boxState.current = { ...boxState.current, ...state };
+    };
+
+    useEffect(() => {
+        window.mergeState = mergeState;
+    }, []);
+
+    useEffect(() => {
+        console.log("Box content", boxContent);
+    }, [boxContent]);
 
     const buildPromptContext = () => {
         let context = "Chat history:\n";
@@ -42,8 +63,7 @@ function AppContent() {
 
         if (boxContent) {
             context += "\nCurrent component code:\n";
-            context += `HTML:\n${boxContent.html}\n`;
-            context += `JavaScript:\n${boxContent.js}\n`;
+            context += `JSX:\n${boxContent.jsx}\n`;
             context += `\nCurrent component state:\n${JSON.stringify(
                 boxState
             )}\n`;
@@ -92,7 +112,8 @@ function AppContent() {
             switch (data.type) {
                 case "GEN":
                     // Reset state for new component
-                    setBoxState((data as GenerateResponse).initialState || {});
+                    boxState.current =
+                        (data as GenerateResponse).initialState || {};
                     setBoxContent(data);
                     break;
 
@@ -101,8 +122,6 @@ function AppContent() {
                     console.log("UPDATED", data);
                     setBoxContent(data);
                     break;
-
-              
 
                 case "PROMPT":
                     // Just show the message, no component changes
@@ -135,11 +154,6 @@ function AppContent() {
         }
     };
 
-    const handleCommand = async (command: string) => {
-        console.log("Command received", command);
-        await handlePromptSubmit(command);
-    };
-
     useEffect(() => {
         const checkPendingOperations = async () => {
             const pendingPrompt = localStorage.getItem("pendingPrompt");
@@ -165,6 +179,14 @@ function AppContent() {
                     <div className="flex justify-end">
                         <LoginButton />
                     </div>
+                    <button
+                        className="bg-blue-500 text-white p-2 rounded"
+                        onClick={() => {
+                            console.log("State", boxState.current);
+                        }}
+                    >
+                        show state
+                    </button>
 
                     {isAuthenticated ? (
                         <div className="flex flex-col gap-6">
@@ -173,30 +195,15 @@ function AppContent() {
                                     onSubmit={handlePromptSubmit}
                                     chatHistory={chatHistory}
                                 />
-
-                                <div
-                                    className={`flex-1 ${
-                                        !boxContent ? "hidden" : ""
-                                    }`}
-                                >
-                                    <div className="bg-white rounded-lg border border-gray-200 p-6 h-[600px] overflow-y-auto shadow-sm hover:shadow-md transition-shadow">
-                                        {boxContent && (
-                                            <Box
-                                                content={boxContent}
-                                                state={boxState}
-                                                onStateChange={setBoxState}
-                                                onCommand={handleCommand}
-                                            />
-                                        )}
+                                {boxContent && (
+                                    <div className="w-1/2 h-[500px]">
+                                        <ReactLiveRenderer
+                                            code={boxContent.jsx}
+                                            showEditor={true}
+                                        />
                                     </div>
-                                </div>
+                                )}
                             </div>
-                            {boxContent && (
-                                <StateDebugger
-                                    state={boxState}
-                                    content={boxContent}
-                                />
-                            )}
                         </div>
                     ) : (
                         <div className="text-center mt-10">

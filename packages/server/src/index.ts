@@ -9,7 +9,8 @@ import {
     ComposioAuthRequiredError,
     setupUserConnectionIfNotExists,
 } from "./composio";
-import { fetchToolData } from "./lib/fetchToolData";
+import { LAYOUT_PROMPT } from "./lib/prompts/layout";
+import { fetchToolData } from "./lib/util/fetchToolData";
 import { PROMPT_CLASSIFIER, createSystemPrompt } from "./prompts";
 
 export const models = {
@@ -20,18 +21,16 @@ export const models = {
 
 interface BoxContent {
     spec: string;
-    html: string;
+    jsx: string;
     initialState: Record<string, unknown>;
-    js: string;
     description: string;
 }
 
 // Define schema for box content
 const boxContentSchema = z.object({
     spec: z.string(),
-    html: z.string(),
+    jsx: z.string(),
     initialState: z.record(z.string(), z.unknown()),
-    js: z.string(),
     description: z.string(),
 });
 
@@ -43,11 +42,34 @@ const promptSchema = z.object({
 // Add new interface for response types
 interface GenerateResponse {
     spec: string;
-    html: string;
+    jsx: string;
     initialState: Record<string, unknown>;
-    js: string;
     description: string;
     type: "GEN" | "UPDATE" | "COMMAND" | "PROMPT";
+}
+
+// Add new interface for layout response
+interface LayoutPlan {
+    grid: {
+        rows: number;
+        columns: number;
+        gap: string;
+    };
+    components: Array<{
+        type: string;
+        purpose: string;
+        behavior: string;
+        gridArea: {
+            rowStart: number;
+            rowEnd: number;
+            columnStart: number;
+            columnEnd: number;
+        };
+        styles?: {
+            justifySelf?: string;
+            alignSelf?: string;
+        };
+    }>;
 }
 
 dotenv.config();
@@ -86,24 +108,14 @@ app.post("/api/generate", async (req, res) => {
         }
 
         const { prompt } = promptSchema.parse(req.body);
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-        const openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
-
-        console.log("prompt", prompt);
         // First, classify the prompt type
         const classifierResponse = await openai.chat.completions.create({
             model: models.gpt4oMini,
             messages: [
-                {
-                    role: "system",
-                    content: PROMPT_CLASSIFIER,
-                },
-                {
-                    role: "user",
-                    content: prompt,
-                },
+                { role: "system", content: PROMPT_CLASSIFIER },
+                { role: "user", content: prompt },
             ],
         });
 
@@ -115,45 +127,61 @@ app.post("/api/generate", async (req, res) => {
                 | "PROMPT";
 
         console.log("Prompt Type: ", promptType);
-        // For PROMPT type, return early with message
+
         if (promptType === "PROMPT") {
             return res.json({
                 type: "PROMPT",
                 description:
                     "I can only help with creating and modifying graphical components. I can't answer general questions.",
-                html: "",
-                js: "",
+                jsx: "",
                 spec: "",
+                initialState: {},
             });
         }
 
-        // Continue with normal flow for other types
+        // For GEN and UPDATE types, get the layout plan
+        let layoutPlan: LayoutPlan | undefined;
+        if (promptType === "GEN" || promptType === "UPDATE") {
+            const layoutResponse = await openai.chat.completions.create({
+                model: models.gpt4oMini,
+                messages: [
+                    { role: "system", content: LAYOUT_PROMPT },
+                    { role: "user", content: prompt },
+                ],
+            });
+
+            try {
+                layoutPlan = JSON.parse(
+                    layoutResponse.choices[0].message.content || "{}"
+                );
+                console.log("Layout Plan:", layoutPlan);
+            } catch (error) {
+                console.error("Failed to parse layout plan:", error);
+            }
+        }
+
+        // Continue with normal flow
         const composioToolset = new OpenAIToolSet({
             apiKey: process.env.COMPOSIO_API_KEY,
             entityId: userId,
         });
 
-        // Fetch tool data
         const toolData = await fetchToolData(openai, composioToolset, prompt);
 
-        console.log("Tool Data: ", toolData);
         const response = await openai.chat.completions.create({
             model: models.gpt4oMini,
             max_tokens: 4000,
             messages: [
+                { role: "system", content: createSystemPrompt(promptType) },
                 {
                     role: "system",
-                    content: createSystemPrompt(promptType),
+                    content: `Here is the layout plan and tool data you will use in your response:
+                    ${JSON.stringify({ layout: layoutPlan, tools: toolData })}
+                    
+                    When implementing the layout, use CSS Grid according to the layout plan.
+                    Do not add any functions to fetch remote data in the JavaScript code.`,
                 },
-                {
-                    role: "system",
-                    content: `Here is the data you will use in your response. Do not add any functions to fetch remote data in the JavaScript code. 
-                     ${JSON.stringify(toolData)}`,
-                },
-                {
-                    role: "user",
-                    content: prompt,
-                },
+                { role: "user", content: prompt },
             ],
         });
 

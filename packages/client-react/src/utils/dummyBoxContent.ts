@@ -1,68 +1,104 @@
-export const dummyBoxContent = null;
-export const _dummyBoxContent = {
-    spec: "A stopwatch component with dynamic styling capabilities",
-    html: `<div class='w-full h-full flex flex-col items-center justify-center bg-blue-100 p-8 rounded-xl shadow-lg'>
-        <div id='stopwatch' class='text-3xl font-bold text-blue-600 mb-4'>00:00:00</div>
-        <div class='space-x-2'>
-            <button id='start' class='bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors'>Start</button>
-            <button id='stop' class='bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors'>Stop</button>
-            <button id='reset' class='bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors'>Reset</button>
-            <button id='change-style' class='bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors'>Change Style</button>
-        </div>
-    </div>`,
-    initialState: {
-        time: 0,
-        isRunning: false,
-        intervalId: null,
-    },
-    js: `
-        const stopwatchDisplay = document.getElementById('stopwatch');
-        const startButton = document.getElementById('start');
-        const stopButton = document.getElementById('stop');
-        const resetButton = document.getElementById('reset');
-        const changeStyleButton = document.getElementById('change-style');
+const initialState = {
+    time: 0,
+    isRunning: false,
+    intervalId: null,
+};
 
-        function updateDisplay() {
-            const hours = Math.floor(state.time / 3600);
-            const minutes = Math.floor((state.time % 3600) / 60);
-            const seconds = state.time % 60;
-            stopwatchDisplay.textContent = \`\${String(hours).padStart(2, '0')}:\${String(minutes).padStart(2, '0')}:\${String(seconds).padStart(2, '0')}\`;
+export const dummyBoxContent = {
+    spec: "A simple React stopwatch component for testing",
+    initialState,
+    jsx: `
+    function Stopwatch() {
+      const initialState = ${JSON.stringify(initialState)};
+      const [state, setState] = React.useState(initialState);
+      const intervalRef = React.useRef(null);
+
+      // Cleanup interval on unmount
+      React.useEffect(() => {
+        return () => {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+          }
+        };
+      }, []);
+
+      React.useEffect(() => {
+        window.mergeState(state);
+      }, [state]);
+
+      const startTimer = () => {
+        if (!state.isRunning) {
+          const intervalId = setInterval(() => {
+            setState(prevState => ({
+              ...prevState,
+              time: prevState.time + 1
+            }));
+          }, 1000);
+          intervalRef.current = intervalId;
+          setState(prevState => ({
+            ...prevState,
+            isRunning: true,
+            intervalId
+          }));
         }
+      };
 
-        startButton.onclick = () => {
-            if (!state.isRunning) {
-                const intervalId = setInterval(() => {
-                    mergeState({ time: state.time + 1 });
-                    updateDisplay();
-                }, 1000);
-                mergeState({ isRunning: true, intervalId });
-            }
-        };
+      const stopTimer = () => {
+        if (state.isRunning) {
+          clearInterval(intervalRef.current);
+          setState(prevState => ({
+            ...prevState,
+            isRunning: false,
+            intervalId: null
+          }));
+        }
+      };
 
-        stopButton.onclick = () => {
-            if (state.isRunning) {
-                clearInterval(state.intervalId);
-                mergeState({ isRunning: false, intervalId: null });
-            }
-        };
+      const resetTimer = () => {
+        clearInterval(intervalRef.current);
+        setState({
+          time: 0,
+          isRunning: false,
+          intervalId: null
+        });
+      };
 
-        resetButton.onclick = () => {
-            clearInterval(state.intervalId);
-            mergeState({ time: 0, isRunning: false, intervalId: null });
-            updateDisplay();
-        };
+      const formatTime = () => {
+        const hours = Math.floor(state.time / 3600);
+        const minutes = Math.floor((state.time % 3600) / 60);
+        const seconds = state.time % 60;
+        return \`\${String(hours).padStart(2, '0')}:\${String(minutes).padStart(2, '0')}:\${String(seconds).padStart(2, '0')}\`;
+      };
 
-        changeStyleButton.onclick = () => {
-            console.log("changeStyleButton clicked");
-            // Send command to update styles while preserving state and logic
-            window.parent.postMessage({
-                type: 'COMMAND',
-                command: 'update the styles of the stopwatch to a random fun design',
-            }, '*');
-        };
-
-        updateDisplay();
-    `,
-    description: "A stopwatch with dynamic styling capabilities",
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-blue-100 p-8 rounded-xl shadow-lg">
+          <div className="text-3xl font-bold text-blue-600 mb-4">
+            {formatTime()}
+          </div>
+          <div className="space-x-2">
+            <button 
+              className="bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors"
+              onClick={startTimer}
+            >
+              Start
+            </button>
+            <button 
+              className="bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors"
+              onClick={stopTimer}
+            >
+              Stop
+            </button>
+            <button 
+              className="bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded transition-colors"
+              onClick={resetTimer}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      );
+    }
+  `,
+    description: "A React stopwatch component using JSX directly",
     type: '"GEN"',
 };
