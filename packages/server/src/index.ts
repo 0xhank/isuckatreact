@@ -7,9 +7,10 @@ import { OpenAI } from "openai";
 import { z } from "zod";
 import {
     ComposioAuthRequiredError,
+    doesUserHaveConnection,
     setupUserConnectionIfNotExists,
 } from "./composio";
-import { LAYOUT_PROMPT } from "./lib/prompts/layout";
+import { fetchLayoutPlan } from "./lib/util/fetchLayout";
 import { fetchToolData } from "./lib/util/fetchToolData";
 import { PROMPT_CLASSIFIER, createSystemPrompt } from "./prompts";
 
@@ -18,13 +19,6 @@ export const models = {
     gpt4: "gpt-4-turbo-preview",
     gpt35: "gpt-3.5-turbo",
 } as const;
-
-interface BoxContent {
-    spec: string;
-    jsx: string;
-    initialState: Record<string, unknown>;
-    description: string;
-}
 
 // Define schema for box content
 const boxContentSchema = z.object({
@@ -48,30 +42,6 @@ interface GenerateResponse {
     type: "GEN" | "UPDATE" | "COMMAND" | "PROMPT";
 }
 
-// Add new interface for layout response
-interface LayoutPlan {
-    grid: {
-        rows: number;
-        columns: number;
-        gap: string;
-    };
-    components: Array<{
-        type: string;
-        purpose: string;
-        behavior: string;
-        gridArea: {
-            rowStart: number;
-            rowEnd: number;
-            columnStart: number;
-            columnEnd: number;
-        };
-        styles?: {
-            justifySelf?: string;
-            alignSelf?: string;
-        };
-    }>;
-}
-
 dotenv.config();
 
 const app = express();
@@ -89,46 +59,50 @@ const jwtCheck = auth({
 
 app.use(jwtCheck);
 
-/**
- * Fetches a layout plan based on the user's prompt
- */
-async function fetchLayoutPlan(
-    openai: OpenAI,
-    prompt: string
-): Promise<LayoutPlan | undefined> {
-    try {
-        const layoutResponse = await openai.chat.completions.create({
-            model: models.gpt4oMini,
-            messages: [
-                { role: "system", content: LAYOUT_PROMPT },
-                { role: "user", content: prompt },
-            ],
-        });
-
-        try {
-            const layoutPlan = JSON.parse(
-                layoutResponse.choices[0].message.content || "{}"
-            );
-            console.log("Layout Plan:", layoutPlan);
-            return layoutPlan;
-        } catch (error) {
-            console.error("Failed to parse layout plan:", error);
-            return undefined;
-        }
-    } catch (error) {
-        console.error("Error fetching layout plan:", error);
-        return undefined;
-    }
-}
-
 // API routes
-app.post("/api/generate", async (req, res) => {
+app.get("/api/connections", async (req, res) => {
     try {
         const auth = req.auth!;
         const userId = auth.payload.sub;
 
+        const services = ["googlecalendar", "gmail", "slack"];
+        const connections = await Promise.all(
+            services.map(async (service) => {
+                const isConnected = await doesUserHaveConnection(
+                    userId,
+                    service
+                );
+                return {
+                    id: service,
+                    isConnected,
+                };
+            })
+        );
+
+        return res.status(200).json({ connections });
+    } catch (error) {
+        console.error("Error checking connections:", error);
+        return res.status(500).json({ error: "Failed to check connections" });
+    }
+});
+
+// Add new endpoint to connect to a specific tool
+app.post("/api/connect/:toolId", async (req, res) => {
+    try {
+        const auth = req.auth!;
+        const userId = auth.payload.sub;
+        const { toolId } = req.params;
+
+        // Validate tool ID
+        const validToolIds = ["google-calendar", "gmail", "slack"];
+        if (!validToolIds.includes(toolId)) {
+            return res.status(400).json({ error: "Invalid tool ID" });
+        }
+
         try {
-            await setupUserConnectionIfNotExists(userId);
+            // Attempt to setup connection
+            await setupUserConnectionIfNotExists(userId, toolId);
+            return res.status(200).json({ success: true });
         } catch (error) {
             if (error instanceof ComposioAuthRequiredError) {
                 return res.status(401).json({
@@ -136,8 +110,18 @@ app.post("/api/generate", async (req, res) => {
                     redirectUrl: error.redirectUrl,
                 });
             }
-            return res.status(500).json({ error: "Server error" });
+            throw error;
         }
+    } catch (error) {
+        console.error(`Error connecting to ${req.params.toolId}:`, error);
+        return res.status(500).json({ error: "Failed to connect to tool" });
+    }
+});
+
+app.post("/api/generate", async (req, res) => {
+    try {
+        const auth = req.auth!;
+        const userId = auth.payload.sub;
 
         const { prompt } = promptSchema.parse(req.body);
         console.log("Prompt: ", prompt);
@@ -152,14 +136,42 @@ app.post("/api/generate", async (req, res) => {
             ],
         });
 
-        const promptType =
-            classifierResponse.choices[0].message.content?.trim() as
-                | "GEN"
-                | "UPDATE"
-                | "COMMAND"
-                | "PROMPT";
+        // Parse the JSON response from the classifier
+        const classifierContent =
+            classifierResponse.choices[0].message.content?.trim() || "{}";
+        let classification: {
+            type: string;
+            toolStrategy: string;
+            layoutStrategy: string;
+        };
 
-        console.log("Prompt Type: ", promptType);
+        try {
+            classification = JSON.parse(classifierContent);
+        } catch (error) {
+            console.error("Failed to parse classifier response:", error);
+            // Fallback to treating the response as just the type string for backward compatibility
+            classification = {
+                type: classifierContent as
+                    | "GEN"
+                    | "UPDATE"
+                    | "COMMAND"
+                    | "PROMPT",
+                toolStrategy: "Use tools when possible.",
+                layoutStrategy: "Use Material UI to make the app look nice.",
+            };
+        }
+
+        const promptType = classification.type as
+            | "GEN"
+            | "UPDATE"
+            | "COMMAND"
+            | "PROMPT";
+        const toolStrategy = classification.toolStrategy || "";
+        const layoutStrategy = classification.layoutStrategy || "";
+
+        console.log("Prompt Type:", promptType);
+        console.log("Tool Strategy:", toolStrategy);
+        console.log("Layout Strategy:", layoutStrategy);
 
         if (promptType === "PROMPT") {
             return res.json({
@@ -169,14 +181,17 @@ app.post("/api/generate", async (req, res) => {
                 jsx: "",
                 spec: "",
                 initialState: {},
+                toolStrategy: toolStrategy,
+                layoutStrategy: layoutStrategy,
             });
         }
 
         // For GEN and UPDATE types, get the layout plan
-        let layoutPlanPromise: Promise<LayoutPlan | undefined> =
-            Promise.resolve(undefined);
+        let layoutPlanPromise: Promise<string> = Promise.resolve(
+            "Use Material UI to make the app look nice."
+        );
         if (promptType === "GEN" || promptType === "UPDATE") {
-            layoutPlanPromise = fetchLayoutPlan(openai, prompt);
+            layoutPlanPromise = fetchLayoutPlan(openai, prompt, layoutStrategy);
         }
 
         // Continue with normal flow
@@ -186,7 +201,11 @@ app.post("/api/generate", async (req, res) => {
         });
 
         // Run layout plan generation and tool data fetching in parallel
-        const toolDataPromise = fetchToolData(openai, composioToolset, prompt);
+        const toolDataPromise = fetchToolData(
+            openai,
+            composioToolset,
+            toolStrategy
+        );
 
         // Wait for both promises to resolve
         const [layoutPlan, toolData] = await Promise.all([
@@ -204,7 +223,6 @@ app.post("/api/generate", async (req, res) => {
                     content: `Here is the layout plan and tool data you will use in your response:
                     ${JSON.stringify({ layout: layoutPlan, tools: toolData })}
                     
-                    When implementing the layout, use CSS Grid according to the layout plan.
                     Do not add any functions to fetch remote data in the JavaScript code.`,
                 },
                 { role: "user", content: prompt },
@@ -225,20 +243,33 @@ app.post("/api/generate", async (req, res) => {
                 .replace(/\\\\n/g, "\\n");
 
             if (!cleanedText.startsWith("{")) {
+                console.error(
+                    "Response doesn't start with '{'. Content:",
+                    cleanedText
+                );
                 throw new Error("Response does not start with {");
             }
 
-            const parsedJson = JSON.parse(cleanedText);
-            const boxContent = boxContentSchema.parse(parsedJson);
+            try {
+                const parsedJson = JSON.parse(cleanedText);
+                const boxContent = boxContentSchema.parse(parsedJson);
 
-            // Add the prompt type to the response
-            const response: GenerateResponse = {
-                ...boxContent,
-                type: promptType,
-            };
-            console.log("Response: ", response);
+                // Add the prompt type to the response
+                const response: GenerateResponse = {
+                    ...boxContent,
+                    type: promptType,
+                };
+                console.log("Response: ", response);
 
-            res.json(response);
+                res.json(response);
+            } catch (jsonParseError) {
+                console.error("JSON parsing error:", jsonParseError);
+                console.error(
+                    "Cleaned text that failed to parse:",
+                    cleanedText
+                );
+                throw jsonParseError;
+            }
         } catch (parseError) {
             console.error("Failed to parse OpenAI response:", parseError);
             console.error("Original response:", content);

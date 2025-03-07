@@ -23,10 +23,6 @@ Example responses:
 - Use GOOGLECALENDAR_FIND_EVENT to fetch events from now until midnight
 - Return all found events or indicate if none exist
 
-2. Weather request: "Show current weather"
-- Use appropriate weather tools to get current conditions
-- Include all relevant weather data in response
-
 Rules:
 1. Only use tools that are provided to you
 2. Always return data in a structured JSON format

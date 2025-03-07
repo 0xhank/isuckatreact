@@ -18,16 +18,28 @@ export class ComposioAuthRequiredError extends Error {
     }
 }
 
-export async function setupUserConnectionIfNotExists(entityId = "default") {
+export async function doesUserHaveConnection(entityId = "default", appName: string) {
+    const entity = client.getEntity(entityId);
+    try {
+        await entity.getConnection({
+            app: appName,
+        });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function setupUserConnectionIfNotExists(entityId = "default", appName: string) {
     const entity = client.getEntity(entityId);
     try {
         const connection = await entity.getConnection({
-            app: "googlecalendar",
+            app: appName,
         });
         return connection;
     } catch {
         const newConnection = await entity.initiateConnection({
-            appName: "googlecalendar",
+            appName: appName,
         });
         if (!newConnection.redirectUrl) {
             throw new Error("No redirect URL found");
@@ -49,7 +61,7 @@ async function createGoogleCalendarEvent(params: {
     end: Date;
 }) {
     // Get connection first, then initialize tools
-    await setupUserConnectionIfNotExists();
+    await setupUserConnectionIfNotExists("default", "googlecalendar");
 
     // Get GitHub star action
     const tools = await composioToolset.getTools({
@@ -69,7 +81,7 @@ async function createGoogleCalendarEvent(params: {
 
 async function listGoogleCalendarEvents() {
     // Get connection first, then initialize tools
-    await setupUserConnectionIfNotExists();
+    await setupUserConnectionIfNotExists("default", "googlecalendar");
 
     // Get GitHub star action
     const tools = await composioToolset.getTools({

@@ -1,4 +1,5 @@
 import React, { KeyboardEvent, useState } from "react";
+import { ConnectedTools } from "./ConnectedTools";
 
 const UserIcon = () => (
     <svg
@@ -69,7 +70,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             handleSubmit();
         }
     };
- 
 
     const displayedChatHistory = [
         ...chatHistory,
@@ -82,6 +82,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 Create a web app with AI
             </p>
 
+            <ConnectedTools />
             <div
                 className={`flex-1 bg-white rounded-lg border border-gray-200 p-4 mb-4 h-[500px] overflow-y-auto ${
                     displayedChatHistory.length === 0 ? "hidden" : ""
@@ -116,13 +117,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                             : "bg-blue-50 border border-blue-100 rounded-tl-none"
                                     }`}
                                 >
-                                    {msg.message}
                                     {!msg.isUser &&
-                                        msg.message === "Thinking..." && (
-                                            <span className="inline-block animate-pulse">
-                                                ...
-                                            </span>
-                                        )}
+                                    msg.message === "Thinking..." ? (
+                                        <span className="inline-block animate-pulse">
+                                            Thinking...
+                                        </span>
+                                    ) : (
+                                        msg.message
+                                    )}
                                 </div>
                             </div>
                         ))
@@ -137,7 +139,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         onChange={(e) => setPrompt(e.target.value)}
                         onKeyDown={handleKeyDown}
                         className="w-full p-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Create an app..."
+                        placeholder="Chat to create an app..."
                         rows={3}
                     />
                 </div>

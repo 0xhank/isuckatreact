@@ -4,7 +4,6 @@ export const createToolSelectionPrompt = (
 Available tool categories: ${availableCategories.join(", ")}
 
 Respond with a JSON array of tool categories that would be useful for implementing the requested feature.
-Only include categories if they would genuinely help implement the functionality.
 
 Example:
 User: "Create a calendar that shows all my remaining events for today"

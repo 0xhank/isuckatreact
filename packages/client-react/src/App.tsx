@@ -106,6 +106,10 @@ function AppContent() {
                 return;
             }
 
+            if (response.status !== 200 || !data) {
+                throw new Error("Failed to generate component");
+            }
+
             // Handle different response types
             switch (data.type) {
                 case "GEN":
@@ -182,15 +186,16 @@ function AppContent() {
                     {isAuthenticated ? (
                         <div className="flex flex-col gap-6">
                             <div className="flex justify-center gap-6">
-                                <ChatInterface
-                                    onSubmit={handlePromptSubmit}
-                                    chatHistory={chatHistory}
-                                />
+                                <div className="flex flex-col gap-6 w-[400px]">
+                                    <ChatInterface
+                                        onSubmit={handlePromptSubmit}
+                                        chatHistory={chatHistory}
+                                    />
+                                </div>
                                 {boxContent && (
-                                    <div className="w-1/2 h-[500px]">
+                                    <div className="w-1/2 h-full">
                                         <ReactLiveRenderer
                                             code={boxContent.jsx}
-                                            showEditor={true}
                                         />
                                     </div>
                                 )}

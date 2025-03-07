@@ -74,7 +74,7 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { LiveEditor, LiveError, LivePreview, LiveProvider } from "react-live";
 
 // Extend Window interface to include mergeState
@@ -89,7 +89,6 @@ interface ReactLiveRendererProps {
     scope?: Record<string, unknown>;
     props?: Record<string, unknown>;
     noInline?: boolean;
-    showEditor?: boolean;
 }
 
 export interface BoxContent {
@@ -104,7 +103,6 @@ export const ReactLiveRenderer: React.FC<ReactLiveRendererProps> = ({
     scope = {},
     props = {},
     noInline = false,
-    showEditor = false,
 }) => {
     // Create a combined scope with React and the props
     const combinedScope = {
@@ -190,6 +188,7 @@ export const ReactLiveRenderer: React.FC<ReactLiveRendererProps> = ({
         ...props,
     };
 
+    const [showEditor, setShowEditor] = useState(false);
     // Add mergeState to window if it doesn't exist
     useEffect(() => {
         if (!window.mergeState) {
@@ -201,15 +200,21 @@ export const ReactLiveRenderer: React.FC<ReactLiveRendererProps> = ({
 
     return (
         <LiveProvider code={code} scope={combinedScope} noInline={noInline}>
-            <div className="w-full h-full bg-white p-4 rounded-lg shadow-md">
-                <LivePreview className="w-full h-full overflow-auto" />
-                {showEditor && (
-                    <div className="mt-4 rounded overflow-hidden">
-                        <LiveEditor className="mt-4 rounded overflow-hidden" />
-                        <LiveError className="text-red-500 mt-2" />
-                    </div>
-                )}
-            </div>
+            <div className="flex flex-col gap-2">
+            <LivePreview className="w-full overflow-auto h-[500px] flex justify-center items-center" />
+            <button
+                className="self-end text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm font-sm"
+                onClick={() => setShowEditor(!showEditor)}
+            >
+                View Source
+            </button>
+</div>
+            <LiveError className="text-red-500 mt-2" />
+            {showEditor && (
+                <div className="mt-4 rounded overflow-hidden">
+                    <LiveEditor className="mt-4 rounded overflow-hidden" />
+                </div>
+            )}
         </LiveProvider>
     );
 };

@@ -94,10 +94,8 @@ Your response must be a JSON object with the following structure:
     "components": [
         {
             "component": string,      // Material UI component name (e.g. "Typography", "Button", "TextField")
-            "props": object,          // Key Material UI props for this component
             "purpose": string,        // Brief description of what this component does
             "behavior": string,       // Description of how this component interacts
-            "gridProps": object       // Grid positioning props if using Grid layout
         }
     ]
 }
@@ -112,57 +110,26 @@ Example response for "Create a stopwatch with a display and start/stop/reset but
     "components": [
         {
             "component": "Typography",
-            "props": {
-                "variant": "h3",
-                "align": "center"
-            },
             "purpose": "Show the elapsed time of the stopwatch",
             "behavior": "Updates in real-time with millisecond precision",
-            "gridProps": {
-                "xs": 12
-            }
         },
         {
             "component": "Box",
-            "props": {
-                "display": "flex",
-                "justifyContent": "center",
-                "gap": 2,
-                "mt": 2
-            },
             "purpose": "Container for the control buttons",
             "behavior": "Organizes buttons in a row with equal spacing",
-            "gridProps": {
-                "xs": 12
-            }
         },
         {
             "component": "Button",
-            "props": {
-                "variant": "contained",
-                "color": "success",
-                "startIcon": "PlayArrow"
-            },
             "purpose": "Start the stopwatch",
             "behavior": "Begins the timer when clicked; disables when timer is running"
         },
         {
             "component": "Button",
-            "props": {
-                "variant": "contained",
-                "color": "error",
-                "startIcon": "Pause"
-            },
             "purpose": "Stop the stopwatch",
             "behavior": "Pauses the timer when clicked; disables when timer is not running"
         },
         {
             "component": "Button",
-            "props": {
-                "variant": "contained",
-                "color": "primary",
-                "startIcon": "Refresh"
-            },
             "purpose": "Reset the stopwatch",
             "behavior": "Sets the timer back to zero; enables the start button"
         }

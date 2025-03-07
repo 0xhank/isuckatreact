@@ -13,38 +13,12 @@ import { tools as availableTools } from "../data/tools";
 export async function fetchToolData(
     openai: OpenAI,
     composioToolset: OpenAIToolSet,
-    prompt: string
+    strategy: string
 ): Promise<unknown> {
-    // Get relevant tools based on the prompt
-    const selectedTools = await openai.chat.completions.create({
-        model: models.gpt4oMini,
-        messages: [
-            {
-                role: "system",
-                content: createToolSelectionPrompt(Object.keys(availableTools)),
-            },
-            {
-                role: "user",
-                content: prompt,
-            },
-        ],
+    const selectedTools = availableTools.flatMap((tool) => tool.actions);
+    const tools = await composioToolset.getTools({
+        actions: selectedTools,
     });
-
-    const toolCategories = JSON.parse(
-        selectedTools.choices[0].message.content || "[]"
-    ) as string[];
-
-    const tools =
-        toolCategories.length > 0
-            ? await composioToolset.getTools({
-                  actions: toolCategories.flatMap(
-                      (category) =>
-                          availableTools[
-                              category as keyof typeof availableTools
-                          ] || []
-                  ),
-              })
-            : [];
 
     // If no tools were selected, return null
     if (tools.length === 0) {
@@ -62,12 +36,18 @@ export async function fetchToolData(
             },
             {
                 role: "user",
-                content: prompt,
+                content: strategy,
             },
         ],
         tools: tools,
         tool_choice: "auto",
     });
 
-    return await composioToolset.handleToolCall(toolResponse);
+    console.log(
+        "toolResponse",
+        JSON.stringify(toolResponse.choices[0].message.content, null, 2)
+    );
+    const toolData = await composioToolset.handleToolCall(toolResponse);
+    console.log("toolData", JSON.stringify(toolData, null, 2));
+    return toolData;
 }
