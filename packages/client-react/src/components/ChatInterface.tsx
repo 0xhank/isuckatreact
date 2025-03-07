@@ -168,39 +168,43 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     />
                 </div>
 
-                {/* Suggestion buttons */}
-                <div className="flex gap-3">
-                    <p className="text-sm text-gray-500 self-center">Try:</p>
-                    <button
-                        onClick={() =>
-                            handleSuggestionClick(
-                                "Create a 60 second timer app"
-                            )
-                        }
-                        disabled={isLoading}
-                        className="bg-gray-200! disabled:opacity-50 text-gray-800 px-2 py-1 rounded-sm hover:bg-gray-200 transition-colors text-xs!"
-                    >
-                        1 min timer
-                    </button>
-                    <button
-                        onClick={() =>
-                            handleSuggestionClick("Create a stopwatch app")
-                        }
-                        disabled={isLoading}
-                        className="bg-gray-200! disabled:opacity-50 text-gray-800 px-2 py-1 rounded-sm hover:bg-gray-200 transition-colors text-xs!"
-                    >
-                        Stopwatch
-                    </button>
-                    <button
-                        onClick={() =>
-                            handleSuggestionClick("Create a calculator app")
-                        }
-                        disabled={isLoading}
-                        className="bg-gray-200! disabled:opacity-50 text-gray-800 px-2 py-1 rounded-sm hover:bg-gray-200 transition-colors text-xs!"
-                    >
-                        Calculator
-                    </button>
-                </div>
+                {/* Suggestion buttons - only show when chat history is empty */}
+                {chatHistory.length === 0 && (
+                    <div className="flex gap-3">
+                        <p className="text-sm text-gray-500 self-center">
+                            Try:
+                        </p>
+                        <button
+                            onClick={() =>
+                                handleSuggestionClick(
+                                    "Create a 60 second timer app"
+                                )
+                            }
+                            disabled={isLoading}
+                            className="bg-gray-200! disabled:opacity-50 text-gray-800 px-2 py-1 rounded-sm hover:bg-gray-200 transition-colors text-xs!"
+                        >
+                            1 min timer
+                        </button>
+                        <button
+                            onClick={() =>
+                                handleSuggestionClick("Create a stopwatch app")
+                            }
+                            disabled={isLoading}
+                            className="bg-gray-200! disabled:opacity-50 text-gray-800 px-2 py-1 rounded-sm hover:bg-gray-200 transition-colors text-xs!"
+                        >
+                            Stopwatch
+                        </button>
+                        <button
+                            onClick={() =>
+                                handleSuggestionClick("Create a calculator app")
+                            }
+                            disabled={isLoading}
+                            className="bg-gray-200! disabled:opacity-50 text-gray-800 px-2 py-1 rounded-sm hover:bg-gray-200 transition-colors text-xs!"
+                        >
+                            Calculator
+                        </button>
+                    </div>
+                )}
                 <div className="flex gap-2 self-end">
                     <button
                         onClick={() => handleSubmit(prompt)}

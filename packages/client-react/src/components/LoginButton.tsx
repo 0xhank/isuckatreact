@@ -7,17 +7,7 @@ export const LoginButton = () => {
         return (
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                    {user?.picture ? (
-                        <img
-                            src={user.picture}
-                            alt={user?.name || "User"}
-                            className="w-8 h-8 rounded-full"
-                        />
-                    ) : (
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-medium">
-                            {user?.name?.charAt(0) || "U"}
-                        </div>
-                    )}
+                   
                     <span className="text-sm font-medium text-gray-700">
                         {user?.name}
                     </span>
