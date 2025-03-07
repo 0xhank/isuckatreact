@@ -202,9 +202,12 @@ function AppContent() {
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center mt-10">
-                            <h1 className="text-2xl mb-4">Welcome to Casper</h1>
+                        <div className="text-center mt-10 flex flex-col gap-4 max-w-lg mx-auto">
+                            <h1 className="text-2xl mb-4">
+                                I Suck at React
+                            </h1>
                             <p>Please log in to continue</p>
+                            <LoginButton />
                         </div>
                     )}
                 </div>

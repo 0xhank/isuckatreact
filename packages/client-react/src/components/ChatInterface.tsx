@@ -79,9 +79,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return (
         <div className="w-[400px] flex flex-col">
             <p className="text-4xl font-medium mb-8 text-black tracking-tight">
-                Create a web app with AI
+                Create a mini app with AI
             </p>
-
             <ConnectedTools />
             <div
                 className={`flex-1 bg-white rounded-lg border border-gray-200 p-4 mb-4 h-[500px] overflow-y-auto ${
