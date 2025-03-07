@@ -28,7 +28,7 @@ const Tool = ({
         try {
             const token = await getAccessTokenSilently();
             const response = await fetch(
-                `http://localhost:3000/api/connect/${toolId}`,
+                `${import.meta.env.VITE_SERVER_URL}/api/connect/${toolId}`,
                 {
                     method: "POST",
                     headers: {
@@ -120,7 +120,7 @@ export const ConnectedTools: React.FC<ConnectedToolsProps> = ({ tools }) => {
             setIsLoading(true);
             const token = await getAccessTokenSilently();
             const response = await fetch(
-                "http://localhost:3000/api/connections",
+                `${import.meta.env.VITE_SERVER_URL}/api/connections`,
                 {
                     method: "GET",
                     headers: {

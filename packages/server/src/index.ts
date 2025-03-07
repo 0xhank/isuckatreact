@@ -289,8 +289,7 @@ app.post("/api/generate", async (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-    console.log(`Send POST requests to http://localhost:${port}/generate`);
+    console.log(`Server running at ${port}`);
 });
 
 // Error handling for uncaught exceptions
