@@ -5,7 +5,6 @@ import "./App.css";
 import { ChatInterface, ChatMessage } from "./components/ChatInterface";
 import { LoginButton } from "./components/LoginButton";
 import { ReactLiveRenderer } from "./components/ReactLiveRenderer";
-import { dummyBoxContent } from "./utils/dummyBoxContent";
 
 const queryClient = new QueryClient();
 
@@ -36,12 +35,11 @@ declare global {
 
 function AppContent() {
     const { isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
-    const [boxContent, setBoxContent] = useState<BoxContext | null>(dummyBoxContent);
+    const [boxContent, setBoxContent] = useState<BoxContext | null>(null);
     const boxState = useRef<Record<string, unknown>>({});
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
     const mergeState = (state: Record<string, unknown>) => {
-        console.log("State merged", state);
         boxState.current = { ...boxState.current, ...state };
     };
 
@@ -112,6 +110,7 @@ function AppContent() {
             switch (data.type) {
                 case "GEN":
                     // Reset state for new component
+                    console.log("GENERATED", data);
                     boxState.current =
                         (data as GenerateResponse).initialState || {};
                     setBoxContent(data);
@@ -179,14 +178,6 @@ function AppContent() {
                     <div className="flex justify-end">
                         <LoginButton />
                     </div>
-                    <button
-                        className="bg-blue-500 text-white p-2 rounded"
-                        onClick={() => {
-                            console.log("State", boxState.current);
-                        }}
-                    >
-                        show state
-                    </button>
 
                     {isAuthenticated ? (
                         <div className="flex flex-col gap-6">

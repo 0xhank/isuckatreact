@@ -89,6 +89,38 @@ const jwtCheck = auth({
 
 app.use(jwtCheck);
 
+/**
+ * Fetches a layout plan based on the user's prompt
+ */
+async function fetchLayoutPlan(
+    openai: OpenAI,
+    prompt: string
+): Promise<LayoutPlan | undefined> {
+    try {
+        const layoutResponse = await openai.chat.completions.create({
+            model: models.gpt4oMini,
+            messages: [
+                { role: "system", content: LAYOUT_PROMPT },
+                { role: "user", content: prompt },
+            ],
+        });
+
+        try {
+            const layoutPlan = JSON.parse(
+                layoutResponse.choices[0].message.content || "{}"
+            );
+            console.log("Layout Plan:", layoutPlan);
+            return layoutPlan;
+        } catch (error) {
+            console.error("Failed to parse layout plan:", error);
+            return undefined;
+        }
+    } catch (error) {
+        console.error("Error fetching layout plan:", error);
+        return undefined;
+    }
+}
+
 // API routes
 app.post("/api/generate", async (req, res) => {
     try {
@@ -108,6 +140,7 @@ app.post("/api/generate", async (req, res) => {
         }
 
         const { prompt } = promptSchema.parse(req.body);
+        console.log("Prompt: ", prompt);
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
         // First, classify the prompt type
@@ -140,24 +173,10 @@ app.post("/api/generate", async (req, res) => {
         }
 
         // For GEN and UPDATE types, get the layout plan
-        let layoutPlan: LayoutPlan | undefined;
+        let layoutPlanPromise: Promise<LayoutPlan | undefined> =
+            Promise.resolve(undefined);
         if (promptType === "GEN" || promptType === "UPDATE") {
-            const layoutResponse = await openai.chat.completions.create({
-                model: models.gpt4oMini,
-                messages: [
-                    { role: "system", content: LAYOUT_PROMPT },
-                    { role: "user", content: prompt },
-                ],
-            });
-
-            try {
-                layoutPlan = JSON.parse(
-                    layoutResponse.choices[0].message.content || "{}"
-                );
-                console.log("Layout Plan:", layoutPlan);
-            } catch (error) {
-                console.error("Failed to parse layout plan:", error);
-            }
+            layoutPlanPromise = fetchLayoutPlan(openai, prompt);
         }
 
         // Continue with normal flow
@@ -166,7 +185,14 @@ app.post("/api/generate", async (req, res) => {
             entityId: userId,
         });
 
-        const toolData = await fetchToolData(openai, composioToolset, prompt);
+        // Run layout plan generation and tool data fetching in parallel
+        const toolDataPromise = fetchToolData(openai, composioToolset, prompt);
+
+        // Wait for both promises to resolve
+        const [layoutPlan, toolData] = await Promise.all([
+            layoutPlanPromise,
+            toolDataPromise,
+        ]);
 
         const response = await openai.chat.completions.create({
             model: models.gpt4oMini,

@@ -9,6 +9,8 @@ Example classifications:
 "Add a reset button" -> "UPDATE"
 "What's your favorite color?" -> "PROMPT"
 "Add this new event to the calendar and update the view" -> "COMMAND"
+"show me a calendar of my events for the week" -> "GEN"
+
 Rules:
 1. Return ONLY the classification string - no explanations or additional text
 2. If unsure, default to "PROMPT"
