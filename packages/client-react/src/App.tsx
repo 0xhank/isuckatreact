@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import { ChatInterface, ChatMessage } from "./components/ChatInterface";
 import { LoginButton } from "./components/LoginButton";
+import LoginPage from "./components/LoginPage";
 import { ReactLiveRenderer } from "./components/ReactLiveRenderer";
 
 const queryClient = new QueryClient();
@@ -182,16 +183,18 @@ function AppContent() {
         <QueryClientProvider client={queryClient}>
             <div className="min-h-screen min-w-screen flex justify-center bg-gray-50 text-black">
                 <div className="w-full max-w-[1200px] flex flex-col p-4 gap-6">
-                    <div className="flex justify-between items-start">
-                        <div className="flex flex-col gap-2">   
-                    <p className="text-4xl font-medium text-black tracking-tight">
-                        Create a mini app with AI
-                    </p>
-                    </div>
-                    <div className="flex justify-end">
-                        <LoginButton />
-                    </div>
-</div>
+                    {isAuthenticated && (
+                        <div className="flex justify-between items-start">
+                            <div className="flex flex-col gap-2">
+                                <p className="text-4xl font-medium text-black tracking-tight">
+                                    Create a mini app with AI
+                                </p>
+                            </div>
+                            <div className="flex justify-end">
+                                <LoginButton />
+                            </div>
+                        </div>
+                    )}
                     {isAuthenticated ? (
                         <div className="flex flex-col gap-6">
                             <div className="flex justify-center gap-6">
@@ -211,11 +214,7 @@ function AppContent() {
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center mt-10 flex flex-col gap-4 max-w-lg mx-auto">
-                            <h1 className="text-2xl mb-4">I Suck at React</h1>
-                            <p>Please log in to continue</p>
-                            <LoginButton />
-                        </div>
+                        <LoginPage />
                     )}
                 </div>
             </div>

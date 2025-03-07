@@ -6,10 +6,25 @@ export const LoginButton = () => {
     if (isAuthenticated) {
         return (
             <div className="flex items-center gap-4">
-                <span>{user?.name}</span>
+                <div className="flex items-center gap-2">
+                    {user?.picture ? (
+                        <img
+                            src={user.picture}
+                            alt={user?.name || "User"}
+                            className="w-8 h-8 rounded-full"
+                        />
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-medium">
+                            {user?.name?.charAt(0) || "U"}
+                        </div>
+                    )}
+                    <span className="text-sm font-medium text-gray-700">
+                        {user?.name}
+                    </span>
+                </div>
                 <button
                     onClick={() => logout()}
-                    className="bg-red-500 text-white px-4 py-2 rounded"
+                    className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                     Log Out
                 </button>
@@ -20,9 +35,20 @@ export const LoginButton = () => {
     return (
         <button
             onClick={() => loginWithRedirect()}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
         >
-            Log In
+            <svg
+                className="w-5 h-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <path
+                    d="M12 4L10.59 5.41L16.17 11H4V13H16.17L10.59 18.59L12 20L20 12L12 4Z"
+                    fill="currentColor"
+                />
+            </svg>
+            Sign In
         </button>
     );
 };
