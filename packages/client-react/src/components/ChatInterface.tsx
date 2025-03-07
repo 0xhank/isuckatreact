@@ -1,4 +1,4 @@
-import React, { KeyboardEvent, useState } from "react";
+import React, { KeyboardEvent, useEffect, useRef, useState } from "react";
 import { ConnectedTools } from "./ConnectedTools";
 
 const UserIcon = () => (
@@ -51,23 +51,41 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [prompt, setPrompt] = useState("");
+    const chatContainerRef = useRef<HTMLDivElement>(null);
 
-    const handleSubmit = async () => {
-        if (!prompt.trim() || isLoading) return;
+    // Scroll to bottom function
+    const scrollToBottom = () => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop =
+                chatContainerRef.current.scrollHeight;
+        }
+    };
+
+    // Auto-scroll when chat history changes or loading state changes
+    useEffect(() => {
+        scrollToBottom();
+    }, [chatHistory, isLoading]);
+
+    const handleSubmit = async (suggestionPrompt: string) => {
+        if (!suggestionPrompt.trim() || isLoading) return;
 
         setIsLoading(true);
         try {
             setPrompt("");
-            await onSubmit(prompt);
+            await onSubmit(suggestionPrompt);
         } finally {
             setIsLoading(false);
         }
     };
 
+    const handleSuggestionClick = (suggestionPrompt: string) => {
+        handleSubmit(suggestionPrompt);
+    };
+
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit();
+            handleSubmit(prompt);
         }
     };
 
@@ -77,15 +95,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     ];
 
     return (
-        <div className="w-[400px] flex flex-col">
-            <p className="text-4xl font-medium mb-8 text-black tracking-tight">
-                Create a mini app with AI
-            </p>
+        <div
+            className="w-[400px] flex flex-col"
+            style={{
+                maxHeight: "min(800px, 90vh)",
+            }}
+        >
             <ConnectedTools />
             <div
-                className={`flex-1 bg-white rounded-lg border border-gray-200 p-4 mb-4 h-[500px] overflow-y-auto ${
+                ref={chatContainerRef}
+                className={`flex-1 bg-white rounded-lg border border-gray-200 p-4 mb-4 overflow-y-auto ${
                     displayedChatHistory.length === 0 ? "hidden" : ""
                 }`}
+                style={{
+                    minHeight:
+                        displayedChatHistory.length === 0 ? "0" : "300px",
+                }}
             >
                 <div className="space-y-4">
                     {displayedChatHistory.length === 0 ? (
@@ -142,9 +167,43 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         rows={3}
                     />
                 </div>
+
+                {/* Suggestion buttons */}
+                <div className="flex gap-3">
+                    <p className="text-sm text-gray-500 self-center">Try:</p>
+                    <button
+                        onClick={() =>
+                            handleSuggestionClick(
+                                "Create a 60 second timer app"
+                            )
+                        }
+                        disabled={isLoading}
+                        className="bg-gray-200! disabled:opacity-50 text-gray-800 px-2 py-1 rounded-sm hover:bg-gray-200 transition-colors text-xs!"
+                    >
+                        1 min timer
+                    </button>
+                    <button
+                        onClick={() =>
+                            handleSuggestionClick("Create a stopwatch app")
+                        }
+                        disabled={isLoading}
+                        className="bg-gray-200! disabled:opacity-50 text-gray-800 px-2 py-1 rounded-sm hover:bg-gray-200 transition-colors text-xs!"
+                    >
+                        Stopwatch
+                    </button>
+                    <button
+                        onClick={() =>
+                            handleSuggestionClick("Create a calculator app")
+                        }
+                        disabled={isLoading}
+                        className="bg-gray-200! disabled:opacity-50 text-gray-800 px-2 py-1 rounded-sm hover:bg-gray-200 transition-colors text-xs!"
+                    >
+                        Calculator
+                    </button>
+                </div>
                 <div className="flex gap-2 self-end">
                     <button
-                        onClick={handleSubmit}
+                        onClick={() => handleSubmit(prompt)}
                         disabled={isLoading}
                         className={`bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition-colors text-sm font-medium ${
                             isLoading ? "loading" : ""

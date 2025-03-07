@@ -203,10 +203,10 @@ export const ReactLiveRenderer: React.FC<ReactLiveRendererProps> = ({
             <div className="flex flex-col gap-2">
             <LivePreview className="w-full overflow-auto h-[500px] flex justify-center items-center" />
             <button
-                className="self-end text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm font-sm"
+                className="self-end bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm font-sm"
                 onClick={() => setShowEditor(!showEditor)}
             >
-                View Source
+                Show/hide source
             </button>
 </div>
             <LiveError className="text-red-500 mt-2" />
